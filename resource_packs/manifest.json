@@ -1,0 +1,29 @@
+{
+	"format_version": 2,
+	"header": {
+		"name": "Sacred Runes",
+		"description": "Sacred Runes Resource Pack",
+		"uuid": "c1012126-dd4e-5dd5-fb13-50658a326f0d",
+		"version": [1, 0, 0],
+		"min_engine_version": [1, 21, 0]
+	},
+	"metadata": {
+		"generated_with": {
+			"blockbench_item_wizard": ["1.2.4"]
+		}
+	},
+	"modules": [
+		{
+			"description": "rune",
+			"type": "resources",
+			"uuid": "928ce464-d5a6-cea0-137d-109de839a635",
+			"version": [1, 0, 0]
+		}
+	],
+	"dependencies": [
+		{
+			"uuid": "0d22961d-75e8-467f-8a49-e216b6f297fe",
+			"version": [1, 0, 0]
+		}
+	]
+}

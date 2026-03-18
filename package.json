@@ -1,0 +1,19 @@
+{
+  "name": "sacred-runes",
+  "version": "1.0.0",
+  "description": "Sacred Runes - Minecraft Bedrock Behavior Pack with Script API",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch",
+    "clean": "rimraf dist scripts"
+  },
+  "devDependencies": {
+    "@minecraft/server": "^1.15.0",
+    "@minecraft/server-ui": "^1.3.0",
+    "typescript": "^5.4.5",
+    "esbuild": "^0.20.0",
+    "rimraf": "^5.0.0"
+  }
+}

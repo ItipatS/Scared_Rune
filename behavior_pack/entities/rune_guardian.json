@@ -1,0 +1,70 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "rune:guardian",
+      "is_spawnable": true,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+
+    "component_groups": {
+      "phase_2": {
+        "minecraft:attack": { "damage": 6 }
+      }
+    },
+
+    "components": {
+      "minecraft:type_family": { "family": ["monster", "rune_mob"] },
+
+      "minecraft:health":          { "value": 60, "max": 60 },
+      "minecraft:attack":          { "damage": 4 },
+      "minecraft:movement":        { "value": 0.28 },
+      "minecraft:follow_range":    { "value": 24, "max": 24 },
+      "minecraft:knockback_resistance": { "value": 0.4 },
+
+      "minecraft:navigation.walk": {
+        "can_path_over_water": false,
+        "avoid_water": true
+      },
+
+      "minecraft:movement.basic": {},
+
+      "minecraft:behavior.melee_attack": {
+        "priority": 1,
+        "speed_multiplier": 1.0,
+        "track_target": true
+      },
+
+      "minecraft:behavior.nearest_attackable_target": {
+        "priority": 2,
+        "reselect_targets": true,
+        "within_radius": 24,
+        "entity_types": [
+          { "filters": { "test": "is_family", "subject": "other", "value": "player" } }
+        ]
+      },
+
+      "minecraft:behavior.random_stroll": {
+        "priority": 8,
+        "speed_multiplier": 0.6
+      },
+
+      "minecraft:behavior.look_at_player": {
+        "priority": 7,
+        "look_distance": 8
+      },
+
+      "minecraft:physics": {},
+      "minecraft:pushable": { "is_pushable": true, "is_pushable_by_piston": true },
+
+      "minecraft:loot": {
+        "table": "loot_tables/entities/rune_guardian.json"
+      },
+
+      "minecraft:nameable": {}
+    },
+
+    "events": {}
+  }
+}
