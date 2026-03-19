@@ -2,7 +2,7 @@
   "format_version": "1.21.0",
   "minecraft:item": {
     "description": {
-      "identifier": "rune:wind",
+      "identifier": "rune:healing",
       "menu_category": {
         "category": "items",
         "group": "itemGroup.name.miscellaneous"
@@ -10,11 +10,9 @@
     },
     "components": {
       "minecraft:display_name": {
-        "value": "Wind Rune"
+        "value": "Healing Rune"
       },
-      "minecraft:icon": {
-        "texture": "rune_wind"
-      },
+      "minecraft:icon": "rune_healing",
       "minecraft:max_stack_size": 16,
       "minecraft:use_modifiers": {
         "use_duration": 1.6,

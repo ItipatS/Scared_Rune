@@ -3,28 +3,28 @@
 	"texture_name": "atlas.items",
 	"texture_data": {
 		"rune": {
-			"textures": "textures/items/rune_default"
+			"textures": "textures/items/rune_default.png"
 		},
 		"rune_fire": {
-			"textures": "textures/items/rune_fire"
+			"textures": "textures/items/rune_fire.png"
 		},
 		"rune_lightning": {
-			"textures": "textures/items/rune_lightning"
+			"textures": "textures/items/rune_lightning.png"
 		},
 		"rune_water": {
-			"textures": "textures/items/rune_water"
+			"textures": "textures/items/rune_water.png"
 		},
 		"rune_healing": {
-			"textures": "textures/items/rune_healing"
+			"textures": "textures/items/rune_healing.png"
 		},
 		"rune_earth": {
-			"textures": "textures/items/rune_earth"
+			"textures": "textures/items/rune_earth.png"
 		},
 		"rune_shadow": {
-			"textures": "textures/items/rune_shadow"
+			"textures": "textures/items/rune_shadow.png"
 		},
 		"rune_wind": {
-			"textures": "textures/items/rune_wind"
+			"textures": "textures/items/rune_wind.png"
 		}
 	}
 }
