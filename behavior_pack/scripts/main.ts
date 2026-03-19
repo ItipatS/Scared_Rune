@@ -1,24 +1,27 @@
 // main.ts — Entry point, bootstraps all systems
-import { world } from "@minecraft/server";
+import { world, system } from "@minecraft/server";
 
 import { RuneRegistry } from "./systems/RuneRegistry.js";
 import { SpellCastSystem } from "./systems/SpellCastSystem.js";
 import { MobAISystem } from "./systems/MobAISystem.js";
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
+// Deferred one tick so the world is ready before we log or init systems.
 
-world.sendMessage("§a[RuneSystem] §fSystems initializing...");
-
-RuneRegistry.init();
-SpellCastSystem.init();
-MobAISystem.init();
+system.run(() => {
+  world.sendMessage("§a[RuneSystem] §fSystems initializing...");
+  RuneRegistry.init();
+  SpellCastSystem.init();
+  MobAISystem.init();
+  world.sendMessage("§a[RuneSystem] §fAll systems online.");
+});
 
 // ─── Entity Spawn Handling ────────────────────────────────────────────────────
 
 world.afterEvents.entitySpawn.subscribe(({ entity }) => {
   // Tag rune guardians so MobAISystem can query them by tag
   if (entity.typeId === "rune:rune_guardain") {
-    entity.addTag("ai:rune_guardian");
+    entity.addTag("ai:rune_guardain");
     return;
   }
 
@@ -31,5 +34,3 @@ world.afterEvents.entitySpawn.subscribe(({ entity }) => {
     }
   }
 });
-
-world.sendMessage("§a[RuneSystem] §fAll systems online.");

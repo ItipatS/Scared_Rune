@@ -278,7 +278,14 @@ export class SpellCastSystem {
     if (!inv) return;
     const item = inv.container?.getItem(player.selectedSlotIndex);
     const rune = item ? RuneRegistry.getRuneByItemId(item.typeId) : null;
-    if (!rune) return;
+    if (!rune) {
+      // Clear stale properties so held-particle doesn't linger
+      player.setProperty("rune:type",    0);
+      player.setProperty("rune:color_r", 0);
+      player.setProperty("rune:color_g", 0);
+      player.setProperty("rune:color_b", 0);
+      return;
+    }
     player.setProperty("rune:type",    rune.typeIndex);
     player.setProperty("rune:color_r", rune.colorR);
     player.setProperty("rune:color_g", rune.colorG);

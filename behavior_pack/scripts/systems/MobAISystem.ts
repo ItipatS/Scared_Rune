@@ -42,7 +42,7 @@ type AttackFn   = (mob: Entity, ctx: AIContext) => void;
 // ── AI Registry ───────────────────────────────────────────────────────────────
 
 const AI_REGISTRY: Record<string, BrainFn> = {
-  "ai:rune_guardian": RuneGuardianBrain,
+  "ai:rune_guardain": RuneGuardianBrain,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,14 +57,15 @@ export class MobAISystem {
   }
 
   static #tick(): void {
-    const dimension = world.getDimension("overworld");
-
-    for (const [tag, brain] of Object.entries(AI_REGISTRY)) {
-      for (const mob of dimension.getEntities({ tags: [tag] })) {
-        try {
-          brain(mob, MobAISystem.#buildContext(mob, dimension));
-        } catch (err) {
-          console.warn(`[MobAISystem] Brain error [${tag}]: ${err}`);
+    for (const dimId of ["overworld", "nether", "the_end"] as const) {
+      const dimension = world.getDimension(dimId);
+      for (const [tag, brain] of Object.entries(AI_REGISTRY)) {
+        for (const mob of dimension.getEntities({ tags: [tag] })) {
+          try {
+            brain(mob, MobAISystem.#buildContext(mob, dimension));
+          } catch (err) {
+            console.warn(`[MobAISystem] Brain error [${tag}]: ${err}`);
+          }
         }
       }
     }
@@ -170,7 +171,7 @@ function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
 
   // ── Phase transition check ────────────────────────────────────────────────
   const newPhase = computePhase(healthPct);
-  if (newPhase !== phase) {
+  if (newPhase > phase) {
     mob.setDynamicProperty("ai:phase", newPhase);
     onPhaseEnter(mob, ctx, newPhase);
     return; // skip attack this tick — phase burst counts as the action
