@@ -30,7 +30,9 @@
 				"animate": [
 					{ "first_person_hold": "c.is_first_person" },
 					{ "third_person_hold": "!c.is_first_person" },
+					{"@comment": "emit held_particles — fires rune_held emitter once on equip (loop:false), emitter runs forever via activation_expression"},
 					"held_particles",
+					{"@comment": "emit use_particles — fires rune_chant burst each time right-click starts (condition 0→1 re-triggers loop:false anim)"},
 					{ "use_particles": "q.main_hand_item_use_duration > 0" }
 				]
 			}

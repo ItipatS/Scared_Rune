@@ -5,7 +5,7 @@
 			"identifier": "rune:held_particle",
 			"basic_render_parameters": {
 				"material": "particles_alpha",
-				"texture": "textures/particle/particles_atlas.png"
+				"texture": "textures/particle/particles_atlas"
 			}
 		},
 		"components": {
@@ -15,11 +15,11 @@
 				"velocity": true
 			},
 			"minecraft:emitter_rate_steady": {
-				"spawn_rate": 5,
-				"max_particles": 400
+				"spawn_rate": "v.emitter_age < 1.0 ? 20 : 3",
+				"max_particles": 200
 			},
-			"minecraft:emitter_lifetime_looping": {
-				"active_time": 1
+			"minecraft:emitter_lifetime_expression": {
+				"activation_expression": 1
 			},
 			"minecraft:emitter_shape_sphere": {
 				"radius": 0.75,
