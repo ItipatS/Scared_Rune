@@ -1,0 +1,22 @@
+{
+	"format_version": "1.10.0",
+	"minecraft:client_entity": {
+		"description": {
+			"identifier": "rune:voidslice",
+			"materials": {
+				"default": "entity_alphatest"
+			},
+			"textures": {
+				"default": "textures/entity/voidslices"
+			},
+			"geometry": {
+				"default": "geometry.voidslices"
+			},
+			"render_controllers": ["controller.render.default"],
+			"spawn_egg": {
+				"base_color": "#38003e",
+				"overlay_color": "#000000"
+			}
+		}
+	}
+}

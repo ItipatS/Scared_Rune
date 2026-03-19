@@ -8,3 +8,6 @@ item.rune:wind.name=Wind Rune
 
 entity.myname:rune_guardain.name=rune_guardain
 item.spawn_egg.entity.myname:rune_guardain.name=Spawn rune_guardain
+
+entity.rune:voidslice.name=VoidSlice
+item.spawn_egg.entity.rune:voidslice.name=Spawn VoidSlice

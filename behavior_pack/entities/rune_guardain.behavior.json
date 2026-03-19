@@ -1,12 +1,17 @@
 {
-	"format_version": "1.16.0",
+	"format_version": "1.16.220",
 	"minecraft:entity": {
 		"description": {
 			"identifier": "rune:rune_guardain",
 			"runtime_identifier": "minecraft:warden",
 			"is_spawnable": true,
 			"is_summonable": true,
-			"is_experimental": false
+			"is_experimental": false,
+			"properties": {
+				"rune:is_thunderslap": { "type": "bool", "default": false, "client_sync": true },
+				"rune:is_fire_breath":  { "type": "bool", "default": false, "client_sync": true },
+				"rune:is_void_slices":  { "type": "bool", "default": false, "client_sync": true }
+			}
 		},
 		"component_groups": {
 			"emerging": {

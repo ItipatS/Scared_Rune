@@ -69,10 +69,19 @@
 						"swimming": "query.swim_amount > 0.0"
 					},
 					"hurt_controller",
-					"sonic_boom_controller"
+					"sonic_boom_controller",
+					"thunderslap_controller",
+					"fire_breath_controller",
+					"void_slices_controller"
 				]
 			},
 			"animations": {
+				"thunderslap_anim":        "animation.rune_guardain.sonic_boom",
+				"thunderslap_controller":  "controller.animation.rune_guardain.thunderslap",
+				"fire_breath_anim":        "animation.rune_guardain.roar",
+				"fire_breath_controller":  "controller.animation.rune_guardain.fire_breath",
+				"void_slices_anim":        "animation.rune_guardain.attack",
+				"void_slices_controller":  "controller.animation.rune_guardain.void_slices",
 				"emerge": "animation.rune_guardain.emerge",
 				"sniff": "animation.rune_guardain.sniff",
 				"sniff_controller": "controller.animation.warden.sniff",

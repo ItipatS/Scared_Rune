@@ -1,0 +1,57 @@
+{
+	"format_version": "1.10.0",
+	"animation_controllers": {
+
+		"controller.animation.rune_guardain.thunderslap": {
+			"initial_state": "default",
+			"states": {
+				"default": {
+					"transitions": [
+						{ "active": "q.property('rune:is_thunderslap')" }
+					]
+				},
+				"active": {
+					"animations": ["thunderslap_anim"],
+					"transitions": [
+						{ "default": "q.all_animations_finished" }
+					]
+				}
+			}
+		},
+
+		"controller.animation.rune_guardain.fire_breath": {
+			"initial_state": "default",
+			"states": {
+				"default": {
+					"transitions": [
+						{ "active": "q.property('rune:is_fire_breath')" }
+					]
+				},
+				"active": {
+					"animations": ["fire_breath_anim"],
+					"transitions": [
+						{ "default": "q.all_animations_finished" }
+					]
+				}
+			}
+		},
+
+		"controller.animation.rune_guardain.void_slices": {
+			"initial_state": "default",
+			"states": {
+				"default": {
+					"transitions": [
+						{ "active": "q.property('rune:is_void_slices')" }
+					]
+				},
+				"active": {
+					"animations": ["void_slices_anim"],
+					"transitions": [
+						{ "default": "q.all_animations_finished" }
+					]
+				}
+			}
+		}
+
+	}
+}

@@ -1,0 +1,38 @@
+{
+	"format_version": "1.16.100",
+	"minecraft:entity": {
+		"description": {
+			"identifier": "rune:voidslice",
+			"is_spawnable": true,
+			"is_summonable": true,
+			"is_experimental": false
+		},
+		"components": {
+			"minecraft:physics": {
+				"has_gravity": false,
+				"has_collision": true
+			},
+			"minecraft:pushable": {
+				"is_pushable": false
+			},
+			"minecraft:push_through": {
+				"value": 1
+			},
+			"minecraft:collision_box": {
+				"width": 1.5,
+				"height": 0.5
+			},
+			"minecraft:mob_effect": {
+				"effect_range": 1.0,
+				"effect_time": 60,
+				"mob_effect": "darkness",
+				"cooldown_time": 3,
+				"entity_filter": {
+					"test": "is_family",
+					"subject": "other",
+					"value": "player"
+				}
+			}
+		}
+	}
+}

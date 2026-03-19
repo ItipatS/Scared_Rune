@@ -156,8 +156,8 @@
 			}
 		},
 		"animation.rune.held_particles": {
-			"loop": false,
-			"animation_length": 0.05,
+			"loop": true,
+			"animation_length": 5,
 			"particle_effects": {
 				"0.0": [
 					{
@@ -169,7 +169,7 @@
 		},
 		"animation.rune.use_particles": {
 			"loop": false,
-			"animation_length": 0.05,
+			"animation_length": 2,
 			"particle_effects": {
 				"0.0": [
 					{
