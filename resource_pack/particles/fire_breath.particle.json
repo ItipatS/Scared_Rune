@@ -21,10 +21,18 @@
 				"activation_expression": 1
 			},
 			"minecraft:emitter_shape_disc": {
-				"offset": [0, 1.5, 1],
+				"offset": [
+					"variable.dir_x * 1.5",
+					1.5,
+					"variable.dir_x == 0.0 && variable.dir_z == 0.0 ? 1.0 : variable.dir_z * 1.5"
+				],
 				"radius": "math.random(1, 5)",
 				"plane_normal": "z",
-				"direction": [0, 0, 1]
+				"direction": [
+					"variable.dir_x",
+					0,
+					"variable.dir_x == 0.0 && variable.dir_z == 0.0 ? 1.0 : variable.dir_z"
+				]
 			},
 			"minecraft:particle_lifetime_expression": {
 				"max_lifetime": "math.random(0.8, 1.5)"
@@ -38,13 +46,16 @@
 				"linear_drag_coefficient": 2
 			},
 			"minecraft:particle_appearance_billboard": {
-				"size": ["0.4 + v.particle_age * 0.4", "0.4 + v.particle_age * 0.4"],
+				"size": [
+					"(0.4 + v.particle_age * 0.4) * (variable.scale == 0.0 ? 1.0 : variable.scale)",
+					"(0.4 + v.particle_age * 0.4) * (variable.scale == 0.0 ? 1.0 : variable.scale)"
+				],
 				"facing_camera_mode": "rotate_xyz",
 				"uv": {
 					"texture_width": 128,
 					"texture_height": 128,
 					"flipbook": {
-						"base_UV": [-1, 25],
+						"base_UV": [0, 24],
 						"size_UV": [8, 8],
 						"step_UV": [8, 0],
 						"max_frame": 8,
