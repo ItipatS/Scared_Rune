@@ -1,33 +1,38 @@
 {
-  "format_version": 2,
-  "header": {
-    "name": "Sacred Runes",
-    "description": "Sacred Runes Behavior Pack",
-    "uuid": "0d22961d-75e8-467f-8a49-e216b6f297fe",
-    "version": [1, 0, 0],
-    "min_engine_version": [1, 26, 0]
-  },
-  "modules": [
-    {
-      "type": "script",
-      "language": "javascript",
-      "uuid": "2121ceee-8406-4fd3-aabd-2a269be51a0e",
-      "entry": "scripts/main.js",
-      "version": [1, 0, 0]
-    }
-  ],
-  "dependencies": [
-    {
-      "module_name": "@minecraft/server",
-      "version": "1.15.0"
-    },
-    {
-      "module_name": "@minecraft/server-ui",
-      "version": "1.3.0"
-    },
-    {
-      "uuid": "c1012126-dd4e-5dd5-fb13-50658a326f0d",
-      "version": [1, 0, 0]
-    }
-  ]
+	"format_version": 2,
+	"header": {
+		"name": "Sacred Runes",
+		"description": "Sacred Runes Behavior Pack",
+		"uuid": "0d22961d-75e8-467f-8a49-e216b6f297fe",
+		"version": [1, 0, 0],
+		"min_engine_version": [1, 26, 0]
+	},
+	"modules": [
+		{
+			"type": "script",
+			"language": "javascript",
+			"uuid": "2121ceee-8406-4fd3-aabd-2a269be51a0e",
+			"entry": "scripts/main.js",
+			"version": [1, 0, 0]
+		}
+	],
+	"dependencies": [
+		{
+			"module_name": "@minecraft/server",
+			"version": "1.15.0"
+		},
+		{
+			"module_name": "@minecraft/server-ui",
+			"version": "1.3.0"
+		},
+		{
+			"uuid": "c1012126-dd4e-5dd5-fb13-50658a326f0d",
+			"version": [1, 0, 0]
+		}
+	],
+	"metadata": {
+		"generated_with": {
+			"blockbench_entity_wizard": ["1.8.2"]
+		}
+	}
 }

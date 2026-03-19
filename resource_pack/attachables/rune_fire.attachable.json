@@ -16,7 +16,9 @@
 				"default": "geometry.rune"
 			},
 			"particle_effects": {
-				"rune_held": "rune:fire_held"
+				"rune_held": "rune:held_particle",
+				"rune_idle": "rune:idle_particle",
+				"rune_chant": "rune:chant_particle"
 			},
 			"animations": {
 				"first_person_hold": "animation.rune.first_person_hold",

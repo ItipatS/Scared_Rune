@@ -19,6 +19,11 @@
 				"first_person_hold": "animation.rune.first_person_hold",
 				"third_person_hold": "animation.rune.third_person_hold"
 			},
+			"particle_effects": {
+				"rune_held": "rune:held_particle",
+				"rune_idle": "rune:idle_particle",
+				"rune_chant": "rune:chant_particle"
+			},
 			"scripts": {
 				"animate": [
 					{ "first_person_hold": "c.is_first_person" },

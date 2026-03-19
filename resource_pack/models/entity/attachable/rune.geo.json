@@ -12,23 +12,40 @@
 			},
 			"bones": [
 				{
-					"name": "bb_main",
-					"pivot": [0, 0, 0],
+					"name": "root_item",
+					"pivot": [-1, 2, -1],
+					"binding": "q.item_slot_to_bone_name(c.item_slot)",
+					"cubes": [
+						{"origin": [-4, -1, -4], "size": [6, 6, 6], "uv": [2, 8]}
+					],
 					"locators": {
 						"rune_core": [-1, 0, -0.5]
 					}
 				},
 				{
-					"name": "root_item",
-					"pivot": [0, 0, 0],
-					"binding": "q.item_slot_to_bone_name(c.item_slot)",
+					"name": "bone",
+					"parent": "root_item",
+					"pivot": [-1, 2, -1],
 					"cubes": [
-						{"origin": [-4, -1, -4], "size": [6, 6, 6], "uv": [2, 8]},
 						{"origin": [-3, 0, 2], "size": [4, 4, 1], "uv": [10, 27]},
-						{"origin": [-5, 0, -6], "size": [4, 4, 1], "pivot": [-2, 0, -5], "rotation": [0, 180, 0], "uv": [10, 27]},
+						{"origin": [-3, 0, -5], "size": [4, 4, 1], "pivot": [-1, 2, -4.5], "rotation": [0, 180, 0], "uv": [10, 27]}
+					]
+				},
+				{
+					"name": "bone2",
+					"parent": "root_item",
+					"pivot": [-1, 2, -1],
+					"cubes": [
 						{"origin": [-3, 5, -3], "size": [4, 1, 4], "uv": [16, 0]},
-						{"origin": [-3, -1, -5], "size": [4, 1, 4], "pivot": [0, -1, -2], "rotation": [180, 0, 0], "uv": [16, 0]},
-						{"origin": [1, 0, -5], "size": [1, 4, 4], "pivot": [2, 0, -2], "rotation": [0, 180, 0], "uv": [0, 0]},
+						{"origin": [-3, -2, -3], "size": [4, 1, 4], "pivot": [-1, -1.5, -1], "rotation": [180, 0, 0], "uv": [16, 0]}
+					]
+				},
+				{
+					"name": "bone3",
+					"parent": "root_item",
+					"pivot": [-1, 2, -1],
+					"cubes": [
+						{"origin": [2, 0, -3], "size": [1, 4, 4], "pivot": [2.5, 2, -1], "rotation": [0, 180, 0], "uv": [0, 0]},
 						{"origin": [-5, 0, -3], "size": [1, 4, 4], "uv": [0, 0]}
 					]
 				}
