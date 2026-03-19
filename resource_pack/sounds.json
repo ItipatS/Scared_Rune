@@ -1,7 +1,7 @@
-{
+﻿{
 	"entity_sounds": {
 		"entities": {
-			"myname:rune_guardain": {
+			"myname:rune_guardian": {
 				"events": {
 					"agitated": {
 						"pitch": [0.8, 1.2],

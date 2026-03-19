@@ -1,8 +1,8 @@
-{
+﻿{
 	"format_version": "1.16.220",
 	"minecraft:entity": {
 		"description": {
-			"identifier": "rune:rune_guardain",
+			"identifier": "rune:rune_guardian",
 			"runtime_identifier": "minecraft:warden",
 			"is_spawnable": true,
 			"is_summonable": true,
@@ -32,7 +32,14 @@
 		},
 		"components": {
 			"minecraft:type_family": {
-				"family": ["rune_guardain", "monster", "mob"]
+				"family": ["rune_guardian", "monster", "mob"]
+			},
+
+			"minecraft:anger_level": {
+				"max_anger": 0,
+				"angry_boost": 0,
+				"anger_decrements_by_one": true,
+				"on_increase_sounds": []
 			},
 
 			"minecraft:health": {
@@ -70,6 +77,20 @@
 
 			"minecraft:behavior.float": {
 				"priority": 0
+			},
+
+			"minecraft:behavior.sonic_boom": {
+				"priority": 1,
+				"entity_types": [
+					{
+						"filters": {
+							"test": "has_tag",
+							"subject": "other",
+							"value": "__sonic_boom_disabled__"
+						},
+						"max_dist": 0
+					}
+				]
 			},
 			"minecraft:behavior.nearest_attackable_target": {
 				"priority": 2,
@@ -109,7 +130,7 @@
 				"on_death": "query.last_hit_by_player ? 10 : 0"
 			},
 			"minecraft:loot": {
-				"table": "loot_tables/entities/rune_guardain.json"
+				"table": "loot_tables/entities/rune_guardian.json"
 			},
 
 			"minecraft:mob_effect": {

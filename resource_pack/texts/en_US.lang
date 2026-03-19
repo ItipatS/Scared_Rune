@@ -1,4 +1,4 @@
-item.rune:fire.name=Fire Rune
+﻿item.rune:fire.name=Fire Rune
 item.rune:lightning.name=Lightning Rune
 item.rune:water.name=Water Rune
 item.rune:healing.name=Healing Rune
@@ -6,8 +6,8 @@ item.rune:earth.name=Earth Rune
 item.rune:shadow.name=Shadow Rune
 item.rune:wind.name=Wind Rune
 
-entity.myname:rune_guardain.name=rune_guardain
-item.spawn_egg.entity.myname:rune_guardain.name=Spawn rune_guardain
+entity.rune:rune_guardian.name=Rune Guardian
+item.spawn_egg.entity.rune:rune_guardian.name=Spawn Rune Guardian
 
-entity.rune:voidslice.name=VoidSlice
-item.spawn_egg.entity.rune:voidslice.name=Spawn VoidSlice
+entity.rune:voidslice.name=Void Slice
+item.spawn_egg.entity.rune:voidslice.name=Spawn Void Slice

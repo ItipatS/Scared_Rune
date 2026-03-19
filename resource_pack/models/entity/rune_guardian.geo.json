@@ -1,9 +1,9 @@
-{
+﻿{
 	"format_version": "1.12.0",
 	"minecraft:geometry": [
 		{
 			"description": {
-				"identifier": "geometry.rune_guardain",
+				"identifier": "geometry.rune_guardian",
 				"texture_width": 128,
 				"texture_height": 128,
 				"visible_bounds_width": 4,

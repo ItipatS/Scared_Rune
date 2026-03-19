@@ -1,22 +1,22 @@
-{
+﻿{
 	"format_version": "1.10.0",
 	"minecraft:client_entity": {
 		"description": {
-			"identifier": "rune:rune_guardain",
+			"identifier": "rune:rune_guardian",
 			"materials": {
 				"default": "warden",
 				"bioluminescent_layer": "warden_bioluminescent_layer"
 			},
 			"textures": {
-				"default": "textures/entity/rune_guardain/rune_guardain",
-				"bioluminescent_layer": "textures/entity/rune_guardain/bioluminescent_layer",
-				"spots_1": "textures/entity/rune_guardain/spots_1",
-				"spots_2": "textures/entity/rune_guardain/spots_2",
-				"tendrils": "textures/entity/rune_guardain/tendrils",
-				"heart": "textures/entity/rune_guardain/heart"
+				"default": "textures/entity/rune_guardian/rune_guardian",
+				"bioluminescent_layer": "textures/entity/rune_guardian/bioluminescent_layer",
+				"spots_1": "textures/entity/rune_guardian/spots_1",
+				"spots_2": "textures/entity/rune_guardian/spots_2",
+				"tendrils": "textures/entity/rune_guardian/tendrils",
+				"heart": "textures/entity/rune_guardian/heart"
 			},
 			"geometry": {
-				"default": "geometry.rune_guardain"
+				"default": "geometry.rune_guardian"
 			},
 			"scripts": {
 				"pre_animation": [
@@ -76,30 +76,30 @@
 				]
 			},
 			"animations": {
-				"thunderslap_anim":        "animation.rune_guardain.sonic_boom",
-				"thunderslap_controller":  "controller.animation.rune_guardain.thunderslap",
-				"fire_breath_anim":        "animation.rune_guardain.roar",
-				"fire_breath_controller":  "controller.animation.rune_guardain.fire_breath",
-				"void_slices_anim":        "animation.rune_guardain.attack",
-				"void_slices_controller":  "controller.animation.rune_guardain.void_slices",
-				"emerge": "animation.rune_guardain.emerge",
-				"sniff": "animation.rune_guardain.sniff",
+				"thunderslap_anim":        "animation.rune_guardian.sonic_boom",
+				"thunderslap_controller":  "controller.animation.rune_guardian.thunderslap",
+				"fire_breath_anim":        "animation.rune_guardian.roar",
+				"fire_breath_controller":  "controller.animation.rune_guardian.fire_breath",
+				"void_slices_anim":        "animation.rune_guardian.attack",
+				"void_slices_controller":  "controller.animation.rune_guardian.void_slices",
+				"emerge": "animation.rune_guardian.emerge",
+				"sniff": "animation.rune_guardian.sniff",
 				"sniff_controller": "controller.animation.warden.sniff",
-				"dig": "animation.rune_guardain.dig",
-				"roar": "animation.rune_guardain.roar",
+				"dig": "animation.rune_guardian.dig",
+				"roar": "animation.rune_guardian.roar",
 				"roar_controller": "controller.animation.warden.roar",
-				"shiver": "animation.rune_guardain.shiver",
+				"shiver": "animation.rune_guardian.shiver",
 				"shiver_controller": "controller.animation.warden.shiver",
 				"base_pose": "animation.humanoid.base_pose.v1.0",
-				"look_at_target": "animation.rune_guardain.look_at_target.default",
-				"move": "animation.rune_guardain.move",
-				"melee_attack": "animation.rune_guardain.attack",
+				"look_at_target": "animation.rune_guardian.look_at_target.default",
+				"move": "animation.rune_guardian.move",
+				"melee_attack": "animation.rune_guardian.attack",
 				"melee_attack_controller": "controller.animation.warden.melee_attacking",
-				"bob": "animation.rune_guardain.bob",
+				"bob": "animation.rune_guardian.bob",
 				"swimming": "animation.humanoid.swimming.v1.0",
-				"hurt": "animation.rune_guardain.hurt",
+				"hurt": "animation.rune_guardian.hurt",
 				"hurt_controller": "controller.animation.warden.hurt",
-				"sonic_boom": "animation.rune_guardain.sonic_boom",
+				"sonic_boom": "animation.rune_guardian.sonic_boom",
 				"sonic_boom_controller": "controller.animation.warden.sonic_boom"
 			},
 			"render_controllers": [

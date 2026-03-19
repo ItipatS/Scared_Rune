@@ -13,7 +13,7 @@ var __privateMethod = (obj, member, method) => {
 };
 
 // behavior_pack/scripts/main.ts
-import { world as world3 } from "@minecraft/server";
+import { world as world3, system as system3 } from "@minecraft/server";
 
 // behavior_pack/scripts/systems/RuneRegistry.ts
 var SpellEffectType = {
@@ -207,7 +207,7 @@ import {
 var COMBO_WINDOW_TICKS = 100;
 var MAX_COMBO_SIZE = 2;
 var MIN_COMBO_SIZE = 1;
-var _onChant, onChant_fn, _onAttack, onAttack_fn, _spawnBillboard, spawnBillboard_fn, _executeSpell, executeSpell_fn, _tickComboExpiry, tickComboExpiry_fn, _getBuffer, getBuffer_fn, _setBuffer, setBuffer_fn, _clearBuffer, clearBuffer_fn, _getBufferTimestamp, getBufferTimestamp_fn, _getNearestEntity, getNearestEntity_fn;
+var _onChant, onChant_fn, _onAttack, onAttack_fn, _spawnCastVfx, spawnCastVfx_fn, _tickBillboard, tickBillboard_fn, _spawnBillboard, spawnBillboard_fn, _executeSpell, executeSpell_fn, _tickHeldRune, tickHeldRune_fn, _tickComboExpiry, tickComboExpiry_fn, _getBuffer, getBuffer_fn, _setBuffer, setBuffer_fn, _clearBuffer, clearBuffer_fn, _getBufferTimestamp, getBufferTimestamp_fn, _getNearestEntity, getNearestEntity_fn;
 var _SpellCastSystem = class _SpellCastSystem {
   static init() {
     world.afterEvents.itemUse.subscribe((event) => {
@@ -223,15 +223,24 @@ var _SpellCastSystem = class _SpellCastSystem {
       __privateMethod(_a = _SpellCastSystem, _onAttack, onAttack_fn).call(_a, event.damagingEntity);
     });
     system.runInterval(() => {
-      var _a;
-      __privateMethod(_a = _SpellCastSystem, _tickComboExpiry, tickComboExpiry_fn).call(_a);
+      var _a, _b;
+      for (const player of world.getAllPlayers()) {
+        __privateMethod(_a = _SpellCastSystem, _tickHeldRune, tickHeldRune_fn).call(_a, player);
+      }
+      __privateMethod(_b = _SpellCastSystem, _tickComboExpiry, tickComboExpiry_fn).call(_b);
     }, 20);
+    system.runInterval(() => {
+      var _a;
+      for (const player of world.getAllPlayers()) {
+        __privateMethod(_a = _SpellCastSystem, _tickBillboard, tickBillboard_fn).call(_a, player);
+      }
+    }, 2);
     console.log("[SpellCastSystem] Initialized.");
   }
 };
 _onChant = new WeakSet();
 onChant_fn = function(event) {
-  var _a, _b, _c;
+  var _a, _b;
   const player = event.source;
   const item = event.itemStack;
   if (!item)
@@ -246,14 +255,13 @@ onChant_fn = function(event) {
   }
   buffer.push(rune.element);
   __privateMethod(_b = _SpellCastSystem, _setBuffer, setBuffer_fn).call(_b, player, buffer, system.currentTick);
-  __privateMethod(_c = _SpellCastSystem, _spawnBillboard, spawnBillboard_fn).call(_c, player, rune.element, buffer.length);
   player.sendMessage(
     `\xA7b\u2726 \xA7f${rune.display} \xA77[${buffer.length}/${MAX_COMBO_SIZE}] \u2014 Attack to cast`
   );
 };
 _onAttack = new WeakSet();
 onAttack_fn = function(attacker) {
-  var _a, _b, _c;
+  var _a, _b, _c, _d;
   if (attacker.typeId !== "minecraft:player")
     return;
   const player = attacker;
@@ -264,13 +272,39 @@ onAttack_fn = function(attacker) {
   if (spell) {
     player.sendMessage(`\xA76\xA7l\u2726 ${spell.name}! \xA7r\xA77${spell.description}`);
     __privateMethod(_b = _SpellCastSystem, _executeSpell, executeSpell_fn).call(_b, player, spell);
+    __privateMethod(_c = _SpellCastSystem, _spawnCastVfx, spawnCastVfx_fn).call(_c, player, buffer);
   } else {
     player.sendMessage("\xA7c[Rune] No combination found. Spell fizzled.");
   }
-  __privateMethod(_c = _SpellCastSystem, _clearBuffer, clearBuffer_fn).call(_c, player);
+  __privateMethod(_d = _SpellCastSystem, _clearBuffer, clearBuffer_fn).call(_d, player);
+};
+_spawnCastVfx = new WeakSet();
+spawnCastVfx_fn = function(player, elements) {
+  if (!elements.includes("fire"))
+    return;
+  const forward = player.getViewDirection();
+  const fwdLen = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
+  const fx = forward.x / fwdLen;
+  const fz = forward.z / fwdLen;
+  const chantLevel = elements.length;
+  const vars = new MolangVariableMap();
+  vars.setFloat("variable.dir_x", fx);
+  vars.setFloat("variable.dir_z", fz);
+  vars.setFloat("variable.scale", 0.6 + chantLevel * 0.3);
+  player.dimension.spawnParticle("rune:fire_breath", player.location, vars);
+};
+_tickBillboard = new WeakSet();
+tickBillboard_fn = function(player) {
+  var _a, _b;
+  const buffer = __privateMethod(_a = _SpellCastSystem, _getBuffer, getBuffer_fn).call(_a, player);
+  if (buffer.length === 0)
+    return;
+  for (let i = 0; i < buffer.length; i++) {
+    __privateMethod(_b = _SpellCastSystem, _spawnBillboard, spawnBillboard_fn).call(_b, player, buffer[i], i + 1, buffer.length);
+  }
 };
 _spawnBillboard = new WeakSet();
-spawnBillboard_fn = function(player, element, slot) {
+spawnBillboard_fn = function(player, element, slot, chantLevel) {
   const rune = RuneRegistry.getRuneByElement(element);
   const forward = player.getViewDirection();
   const loc = player.location;
@@ -282,6 +316,7 @@ spawnBillboard_fn = function(player, element, slot) {
   vars.setFloat("variable.color_g", rune?.colorG ?? 1);
   vars.setFloat("variable.color_b", rune?.colorB ?? 1);
   vars.setFloat("variable.rune_type", rune?.typeIndex ?? 0);
+  vars.setFloat("variable.chant_level", chantLevel);
   player.dimension.spawnParticle("rune:use_particle", {
     x: loc.x + forward.x * 1.5 + perpX * sideOffset,
     y: loc.y + 1.5,
@@ -369,6 +404,25 @@ executeSpell_fn = function(player, spell) {
       player.sendMessage(`\xA77[Spell] '${spell.effectType}' not yet implemented.`);
   }
 };
+_tickHeldRune = new WeakSet();
+tickHeldRune_fn = function(player) {
+  const inv = player.getComponent("minecraft:inventory");
+  if (!inv)
+    return;
+  const item = inv.container?.getItem(player.selectedSlotIndex);
+  const rune = item ? RuneRegistry.getRuneByItemId(item.typeId) : null;
+  if (!rune)
+    return;
+  const vars = new MolangVariableMap();
+  vars.setFloat("variable.color_r", rune.colorR);
+  vars.setFloat("variable.color_g", rune.colorG);
+  vars.setFloat("variable.color_b", rune.colorB);
+  player.dimension.spawnParticle("rune:held_particle", {
+    x: player.location.x,
+    y: player.location.y + 1,
+    z: player.location.z
+  }, vars);
+};
 _tickComboExpiry = new WeakSet();
 tickComboExpiry_fn = function() {
   var _a, _b, _c;
@@ -429,6 +483,13 @@ getNearestEntity_fn = function(player, entities) {
 __privateAdd(_SpellCastSystem, _onChant);
 // ── Cast (attack entity or block) ────────────────────────────────────────
 __privateAdd(_SpellCastSystem, _onAttack);
+// ── Cast VFX ─────────────────────────────────────────────────────────────
+// Spawns element-specific VFX when a spell fires.
+__privateAdd(_SpellCastSystem, _spawnCastVfx);
+// ── Billboard Tick ───────────────────────────────────────────────────────
+// Re-spawns one short-lived particle per buffered rune every 2 ticks so the
+// billboard tracks the player's head direction continuously.
+__privateAdd(_SpellCastSystem, _tickBillboard);
 // ── Billboard VFX ────────────────────────────────────────────────────────
 // Spawns a particle in front of the player at eye level.
 // Slot 1 = centered, Slot 2 = offset right so both appear side-by-side.
@@ -437,6 +498,10 @@ __privateAdd(_SpellCastSystem, _onAttack);
 __privateAdd(_SpellCastSystem, _spawnBillboard);
 // ── Spell Execution ──────────────────────────────────────────────────────
 __privateAdd(_SpellCastSystem, _executeSpell);
+// ── Held Rune Sync ───────────────────────────────────────────────────────
+// Spawns held ambient particle every 20 ticks with color passed via
+// MolangVariableMap. active_time: 1.1s slightly overlaps the 1s interval.
+__privateAdd(_SpellCastSystem, _tickHeldRune);
 // ── Combo Expiry ─────────────────────────────────────────────────────────
 __privateAdd(_SpellCastSystem, _tickComboExpiry);
 // ── Dynamic Property Helpers ─────────────────────────────────────────────
@@ -452,7 +517,9 @@ var SpellCastSystem = _SpellCastSystem;
 import {
   world as world2,
   system as system2,
-  EntityDamageCause as EntityDamageCause2
+  EntityDamageCause as EntityDamageCause2,
+  GameMode,
+  MolangVariableMap as MolangVariableMap2
 } from "@minecraft/server";
 var AI_TICK_INTERVAL = 10;
 var AI_REGISTRY = {
@@ -471,13 +538,19 @@ var _MobAISystem = class _MobAISystem {
 _tick = new WeakSet();
 tick_fn = function() {
   var _a;
-  const dimension = world2.getDimension("overworld");
-  for (const [tag, brain] of Object.entries(AI_REGISTRY)) {
-    for (const mob of dimension.getEntities({ tags: [tag] })) {
-      try {
-        brain(mob, __privateMethod(_a = _MobAISystem, _buildContext, buildContext_fn).call(_a, mob, dimension));
-      } catch (err) {
-        console.warn(`[MobAISystem] Brain error [${tag}]: ${err}`);
+  for (const player of world2.getAllPlayers()) {
+    const dimension = player.dimension;
+    for (const [tag, brain] of Object.entries(AI_REGISTRY)) {
+      for (const mob of dimension.getEntities({
+        tags: [tag],
+        location: player.location,
+        maxDistance: 128
+      })) {
+        try {
+          brain(mob, __privateMethod(_a = _MobAISystem, _buildContext, buildContext_fn).call(_a, mob, dimension));
+        } catch (err) {
+          console.warn(`[MobAISystem] Brain error [${tag}]: ${err}`);
+        }
       }
     }
   }
@@ -502,11 +575,7 @@ function computePhase(healthPct) {
   return 3;
 }
 function onPhaseEnter(mob, ctx, newPhase) {
-  const nearby = ctx.dimension.getEntities({
-    type: "minecraft:player",
-    maxDistance: 40,
-    location: mob.location
-  });
+  const nearby = getCombatPlayers(mob, ctx, 40);
   if (newPhase === 2) {
     mob.addEffect("strength", 1200, { amplifier: 1 });
     mob.addEffect("speed", 600, { amplifier: 1 });
@@ -543,20 +612,34 @@ var ATTACK_FNS = {
   void_slices: executeVoidSlices,
   fire_breath: executeFireBreath
 };
+function getCombatPlayers(mob, ctx, range) {
+  return ctx.dimension.getEntities({
+    type: "minecraft:player",
+    maxDistance: range,
+    location: mob.location
+  }).filter((p) => {
+    const mode = p.getGameMode();
+    return mode !== GameMode.creative && mode !== GameMode.spectator;
+  });
+}
 function selectAttack(phase, lastAttack) {
   const pool = ATTACK_POOL[phase] ?? ATTACK_POOL[1];
   const candidates = pool.length > 1 ? pool.filter((a) => a !== lastAttack) : pool;
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 function RuneGuardianBrain(mob, ctx) {
+  if (!mob.isValid)
+    return;
   const { phase, healthPct, attackCd, lastAttack } = ctx;
   const newPhase = computePhase(healthPct);
-  if (newPhase !== phase) {
+  if (newPhase > phase) {
     mob.setDynamicProperty("ai:phase", newPhase);
     onPhaseEnter(mob, ctx, newPhase);
     return;
   }
   if (system2.currentTick < attackCd)
+    return;
+  if (getCombatPlayers(mob, ctx, 24).length === 0)
     return;
   const attack = selectAttack(phase, lastAttack);
   const fn = ATTACK_FNS[attack];
@@ -635,13 +718,22 @@ function executeVoidSlices(mob, ctx) {
 }
 function executeFireBreath(mob, ctx) {
   mob.setProperty("rune:is_fire_breath", true);
+  const forward = mob.getViewDirection();
+  const fwdLen = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
+  const fx = forward.x / fwdLen;
+  const fz = forward.z / fwdLen;
+  const vars = new MolangVariableMap2();
+  vars.setFloat("variable.dir_x", fx);
+  vars.setFloat("variable.dir_z", fz);
+  vars.setFloat("variable.scale", 1.5);
+  ctx.dimension.spawnParticle("rune:fire_breath", mob.location, vars);
   system2.runTimeout(() => {
     try {
-      const forward = mob.getViewDirection();
+      const forward2 = mob.getViewDirection();
       const loc = mob.location;
-      const fwdLen = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
-      const fx = forward.x / fwdLen;
-      const fz = forward.z / fwdLen;
+      const fwdLen2 = Math.sqrt(forward2.x * forward2.x + forward2.z * forward2.z) || 1;
+      const fx2 = forward2.x / fwdLen2;
+      const fz2 = forward2.z / fwdLen2;
       const nearby = ctx.dimension.getEntities({
         type: "minecraft:player",
         maxDistance: 10,
@@ -651,7 +743,7 @@ function executeFireBreath(mob, ctx) {
         const dx = p.location.x - loc.x;
         const dz = p.location.z - loc.z;
         const dlen = Math.sqrt(dx * dx + dz * dz) || 1;
-        const dot = dx / dlen * fx + dz / dlen * fz;
+        const dot = dx / dlen * fx2 + dz / dlen * fz2;
         if (dot > 0.64) {
           p.applyDamage(8, { cause: EntityDamageCause2.fire, damagingEntity: mob });
           p.setOnFire(3, true);
@@ -669,21 +761,28 @@ function executeFireBreath(mob, ctx) {
 }
 
 // behavior_pack/scripts/main.ts
-world3.sendMessage("\xA7a[RuneSystem] \xA7fSystems initializing...");
-RuneRegistry.init();
-SpellCastSystem.init();
-MobAISystem.init();
+system3.run(() => {
+  world3.sendMessage("\xA7a[RuneSystem] \xA7fSystems initializing...");
+  RuneRegistry.init();
+  SpellCastSystem.init();
+  MobAISystem.init();
+  world3.sendMessage("\xA7a[RuneSystem] \xA7fAll systems online.");
+});
 world3.afterEvents.entitySpawn.subscribe(({ entity }) => {
-  if (entity.typeId === "rune:rune_guardain") {
+  if (entity.typeId === "rune:rune_guardian") {
     entity.addTag("ai:rune_guardian");
     return;
   }
   if (entity.typeId === "minecraft:warden") {
     if (Math.random() < 0.5) {
       const { location, dimension } = entity;
-      entity.remove();
-      dimension.spawnEntity("rune:rune_guardain", location);
+      system3.run(() => {
+        try {
+          entity.remove();
+          dimension.spawnEntity("rune:rune_guardian", location);
+        } catch {
+        }
+      });
     }
   }
 });
-world3.sendMessage("\xA7a[RuneSystem] \xA7fAll systems online.");

@@ -17,8 +17,7 @@
 //
 // BILLBOARD VFX:
 //   Spawned via spawnParticle() — no entity context, q.property() unavailable.
-//   Uses rune:held_particle as placeholder. Replace with per-element particle
-//   files (rune:billboard_fire, etc.) once spritesheet is ready.
+//   Colors passed via MolangVariableMap (variable.color_r/g/b, variable.rune_type, etc.).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
@@ -270,26 +269,25 @@ export class SpellCastSystem {
   }
 
   // ── Held Rune Sync ───────────────────────────────────────────────────────
-  // Sets rune:type / color_r/g/b on the player entity every 20 ticks so that
-  // q.property() in the rune_held ambient particle reads the correct values.
+  // Spawns held ambient particle every 20 ticks with color passed via
+  // MolangVariableMap. active_time: 1.1s slightly overlaps the 1s interval.
 
   static #tickHeldRune(player: Player): void {
     const inv = player.getComponent("minecraft:inventory");
     if (!inv) return;
     const item = inv.container?.getItem(player.selectedSlotIndex);
     const rune = item ? RuneRegistry.getRuneByItemId(item.typeId) : null;
-    if (!rune) {
-      // Clear stale properties so held-particle doesn't linger
-      player.setProperty("rune:type",    0);
-      player.setProperty("rune:color_r", 0);
-      player.setProperty("rune:color_g", 0);
-      player.setProperty("rune:color_b", 0);
-      return;
-    }
-    player.setProperty("rune:type",    rune.typeIndex);
-    player.setProperty("rune:color_r", rune.colorR);
-    player.setProperty("rune:color_g", rune.colorG);
-    player.setProperty("rune:color_b", rune.colorB);
+    if (!rune) return;
+
+    const vars = new MolangVariableMap();
+    vars.setFloat("variable.color_r", rune.colorR);
+    vars.setFloat("variable.color_g", rune.colorG);
+    vars.setFloat("variable.color_b", rune.colorB);
+    player.dimension.spawnParticle("rune:held_particle", {
+      x: player.location.x,
+      y: player.location.y + 1.0,
+      z: player.location.z,
+    }, vars);
   }
 
   // ── Combo Expiry ─────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-// main.ts — Entry point, bootstraps all systems
+﻿// main.ts — Entry point, bootstraps all systems
 import { world, system } from "@minecraft/server";
 
 import { RuneRegistry } from "./systems/RuneRegistry.js";
@@ -20,8 +20,8 @@ system.run(() => {
 
 world.afterEvents.entitySpawn.subscribe(({ entity }) => {
   // Tag rune guardians so MobAISystem can query them by tag
-  if (entity.typeId === "rune:rune_guardain") {
-    entity.addTag("ai:rune_guardain");
+  if (entity.typeId === "rune:rune_guardian") {
+    entity.addTag("ai:rune_guardian");
     return;
   }
 
@@ -29,8 +29,13 @@ world.afterEvents.entitySpawn.subscribe(({ entity }) => {
   if (entity.typeId === "minecraft:warden") {
     if (Math.random() < 0.5) {
       const { location, dimension } = entity;
-      entity.remove();
-      dimension.spawnEntity("rune:rune_guardain", location);
+      // Defer removal — cannot call entity.remove() during entitySpawn event
+      system.run(() => {
+        try {
+          entity.remove();
+          dimension.spawnEntity("rune:rune_guardian", location);
+        } catch {}
+      });
     }
   }
 });

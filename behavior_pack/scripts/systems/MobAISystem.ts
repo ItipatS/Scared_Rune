@@ -42,7 +42,7 @@ type AttackFn   = (mob: Entity, ctx: AIContext) => void;
 // ── AI Registry ───────────────────────────────────────────────────────────────
 
 const AI_REGISTRY: Record<string, BrainFn> = {
-  "ai:rune_guardain": RuneGuardianBrain,
+  "ai:rune_guardian": RuneGuardianBrain,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,10 +57,14 @@ export class MobAISystem {
   }
 
   static #tick(): void {
-    for (const dimId of ["overworld", "nether", "the_end"] as const) {
-      const dimension = world.getDimension(dimId);
+    for (const player of world.getAllPlayers()) {
+      const dimension = player.dimension;
       for (const [tag, brain] of Object.entries(AI_REGISTRY)) {
-        for (const mob of dimension.getEntities({ tags: [tag] })) {
+        for (const mob of dimension.getEntities({ 
+          tags: [tag],
+          location: player.location,
+          maxDistance: 128,
+        })) {
           try {
             brain(mob, MobAISystem.#buildContext(mob, dimension));
           } catch (err) {
@@ -167,6 +171,7 @@ function selectAttack(phase: number, lastAttack: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
+   if (!mob.isValid) return;
   const { phase, healthPct, attackCd, lastAttack } = ctx;
 
   // ── Phase transition check ────────────────────────────────────────────────

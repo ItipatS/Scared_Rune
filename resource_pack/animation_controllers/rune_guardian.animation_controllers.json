@@ -1,8 +1,8 @@
-{
+﻿{
 	"format_version": "1.10.0",
 	"animation_controllers": {
 
-		"controller.animation.rune_guardain.thunderslap": {
+		"controller.animation.rune_guardian.thunderslap": {
 			"initial_state": "default",
 			"states": {
 				"default": {
@@ -19,7 +19,7 @@
 			}
 		},
 
-		"controller.animation.rune_guardain.fire_breath": {
+		"controller.animation.rune_guardian.fire_breath": {
 			"initial_state": "default",
 			"states": {
 				"default": {
@@ -36,7 +36,7 @@
 			}
 		},
 
-		"controller.animation.rune_guardain.void_slices": {
+		"controller.animation.rune_guardian.void_slices": {
 			"initial_state": "default",
 			"states": {
 				"default": {

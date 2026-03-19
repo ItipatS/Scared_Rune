@@ -1,7 +1,7 @@
-{
+﻿{
 	"format_version": "1.8.0",
 	"animations": {
-		"animation.rune_guardain.look_at_target.default": {
+		"animation.rune_guardian.look_at_target.default": {
 			"loop": true,
 			"bones": {
 				"head": {
@@ -12,7 +12,7 @@
 				}
 			}
 		},
-		"animation.rune_guardain.shiver": {
+		"animation.rune_guardian.shiver": {
 			"loop": true,
 			"bones": {
 				"left_tendril": {
@@ -28,7 +28,7 @@
 				}
 			}
 		},
-		"animation.rune_guardain.move": {
+		"animation.rune_guardian.move": {
 			"loop": true,
 			"bones": {
 				"head": {
@@ -51,7 +51,7 @@
 				}
 			}
 		},
-		"animation.rune_guardain.emerge": {
+		"animation.rune_guardian.emerge": {
 			"animation_length": 6.64,
 			"bones": {
 				"body": {
@@ -903,7 +903,7 @@
 				}
 			}
 		},
-		"animation.rune_guardain.dig": {
+		"animation.rune_guardian.dig": {
 			"loop": "hold_on_last_frame",
 			"animation_length": 5,
 			"bones": {
@@ -1361,7 +1361,7 @@
 				}
 			}
 		},
-		"animation.rune_guardain.roar": {
+		"animation.rune_guardian.roar": {
 			"animation_length": 4.2,
 			"bones": {
 				"body": {
@@ -1671,7 +1671,7 @@
 				}
 			}
 		},
-		"animation.rune_guardain.sniff": {
+		"animation.rune_guardian.sniff": {
 			"animation_length": 3.32,
 			"bones": {
 				"body": {
@@ -1801,7 +1801,7 @@
 				}
 			}
 		},
-		"animation.rune_guardain.bob": {
+		"animation.rune_guardian.bob": {
 			"loop": true,
 			"bones": {
 				"body": {
@@ -1812,7 +1812,7 @@
 				}
 			}
 		},
-		"animation.rune_guardain.attack": {
+		"animation.rune_guardian.attack": {
 			"animation_length": 0.33333,
 			"bones": {
 				"body": {
@@ -1969,7 +1969,7 @@
 				}
 			}
 		},
-		"animation.rune_guardain.hurt": {
+		"animation.rune_guardian.hurt": {
 			"animation_length": 0.25,
 			"bones": {
 				"body": {
@@ -2052,7 +2052,7 @@
 				}
 			}
 		},
-		"animation.rune_guardain.sonic_boom": {
+		"animation.rune_guardian.sonic_boom": {
 			"animation_length": 3,
 			"bones": {
 				"body": {
