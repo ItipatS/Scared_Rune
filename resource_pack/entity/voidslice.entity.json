@@ -7,10 +7,10 @@
 				"default": "entity_alphatest"
 			},
 			"textures": {
-				"default": "textures/entity/voidslices"
+				"default": "textures/entity/voidslice"
 			},
 			"geometry": {
-				"default": "geometry.voidslices"
+				"default": "geometry.voidslice"
 			},
 			"render_controllers": ["controller.render.default"],
 			"spawn_egg": {
