@@ -14,7 +14,7 @@
 				"max_particles": 20
 			},
 			"minecraft:emitter_lifetime_once": {
-				"active_time": "math.random(1, 5)"
+				"active_time": 5
 			},
 			"minecraft:emitter_shape_sphere": {
 				"offset": [0.75, -1, 1],
@@ -51,15 +51,12 @@
 				}
 			},
 			"minecraft:particle_appearance_tinting": {
-				"color": {
-					"interpolant": "v.particle_age / v.particle_lifetime",
-					"gradient": {
-						"0.09": "#FFFF6565",
-						"0.45": "#ffffffff",
-						"0.64": "#FF020200",
-						"0.82": "#FFEF0000"
-					}
-				}
+				"color": [
+					"q.property('rune:color_r')",
+					"q.property('rune:color_g')",
+					"q.property('rune:color_b')",
+					"1.0 - (v.particle_age / v.particle_lifetime)"
+				]
 			}
 		}
 	}
