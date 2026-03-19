@@ -168,18 +168,6 @@
 					}
 				]
 			}
-		},
-		"animation.rune.use_particles": {
-			"loop": false,
-			"animation_length": 2,
-			"particle_effects": {
-				"0.0": [
-					{
-						"effect": "rune_chant",
-						"locator": "rune_core"
-					}
-				]
-			}
 		}
 	}
 }

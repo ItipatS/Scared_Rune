@@ -23,15 +23,13 @@
 			"animations": {
 				"first_person_hold": "animation.rune.first_person_hold",
 				"third_person_hold": "animation.rune.third_person_hold",
-				"held_particles":    "animation.rune.held_particles",
-				"use_particles":     "animation.rune.use_particles"
+				"held_particles":    "animation.rune.held_particles"
 			},
 			"scripts": {
 				"animate": [
 					{ "first_person_hold": "c.is_first_person" },
 					{ "third_person_hold": "!c.is_first_person" },
-					{ "held_particles": "q.is_alive" },
-					{ "use_particles": "q.main_hand_item_use_duration > 0" }
+					{ "held_particles": "q.is_alive" }
 				]
 			}
 		}
