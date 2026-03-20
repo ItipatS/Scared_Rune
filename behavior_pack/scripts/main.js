@@ -291,6 +291,9 @@ spawnCastVfx_fn = function(player, elements) {
   vars.setFloat("variable.dir_x", fx);
   vars.setFloat("variable.dir_z", fz);
   vars.setFloat("variable.scale", 0.6 + chantLevel * 0.3);
+  vars.setFloat("variable.min_size", 1);
+  vars.setFloat("variable.max_size", 2);
+  vars.setFloat("variable.spawn_rate", 50);
   player.dimension.spawnParticle("rune:fire_breath", player.location, vars);
 };
 _tickBillboard = new WeakSet();
