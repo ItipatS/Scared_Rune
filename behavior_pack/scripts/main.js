@@ -622,12 +622,12 @@ var ATTACK_POOL = {
   3: ["fire_breath", "thunderslap", "void_slices"]
 };
 var ATTACK_COOLDOWNS = {
-  thunderslap: 100,
-  // 5s
+  thunderslap: 200,
+  // 10s
   void_slices: 200,
   // 10s
-  fire_breath: 280
-  // 14s
+  fire_breath: 300
+  // 15s
 };
 var ATTACK_RANGES = {
   thunderslap: [0, 4],
@@ -636,7 +636,7 @@ var ATTACK_RANGES = {
   fire_breath: [0, 6]
   // 1/3 of 24
 };
-var GLOBAL_ATTACK_CD = 40;
+var GLOBAL_ATTACK_CD = 200;
 var ATTACK_FNS = {
   thunderslap: executeThunderslap,
   void_slices: executeVoidSlices,

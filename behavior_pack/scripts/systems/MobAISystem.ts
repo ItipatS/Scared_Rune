@@ -152,9 +152,9 @@ const ATTACK_POOL: Record<number, string[]> = {
 
 // Ticks between attack uses (global cooldown applied after each attack)
 const ATTACK_COOLDOWNS: Record<string, number> = {
-  thunderslap: 100, // 5s
+  thunderslap: 200, // 10s
   void_slices: 200, // 10s
-  fire_breath: 280, // 14s
+  fire_breath: 300, // 15s
 };
 
 // [min, max] distance (blocks) at which each attack can trigger
@@ -166,7 +166,7 @@ const ATTACK_RANGES: Record<string, [number, number]> = {
 
 // Ticks the guardian must wait after ANY attack before firing the next one.
 // Prevents back-to-back chaining of different attacks.
-const GLOBAL_ATTACK_CD = 40; // 2s
+const GLOBAL_ATTACK_CD = 200; // 5s
 
 // Stub executors — replace with real implementations later
 const ATTACK_FNS: Record<string, AttackFn> = {
