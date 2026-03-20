@@ -99,7 +99,7 @@ export class MobAISystem {
     const globalCd = (mob.getDynamicProperty("ai:global_cd") as number | undefined) ?? 0;
     const attackCds: Record<string, number> = {};
     for (const name of Object.keys(ATTACK_COOLDOWNS)) {
-      attackCds[name] = (mob.getDynamicProperty(`ai:cd:${name}`) as number | undefined) ?? 0;
+      attackCds[name] = (mob.getDynamicProperty(`ai:${name}_cd`) as number | undefined) ?? 0;
     }
 
     return { phase, healthPct, dimension, globalCd, attackCds, lastAttack };
@@ -153,15 +153,15 @@ const ATTACK_POOL: Record<number, string[]> = {
 // Ticks between attack uses (global cooldown applied after each attack)
 const ATTACK_COOLDOWNS: Record<string, number> = {
   thunderslap: 100, // 5s
-  void_slices: 140, // 7s
-  fire_breath: 80, // 4s
+  void_slices: 200, // 10s
+  fire_breath: 280, // 14s
 };
 
 // [min, max] distance (blocks) at which each attack can trigger
 const ATTACK_RANGES: Record<string, [number, number]> = {
   thunderslap: [0, 4],   // melee only
-  void_slices: [6, 24],  // minimum 6 — projectile fan, not for point-blank
-  fire_breath: [0, 8],   // 1/3 of 24
+  void_slices: [0, 4],
+  fire_breath: [0, 6],   // 1/3 of 24
 };
 
 // Ticks the guardian must wait after ANY attack before firing the next one.
@@ -238,9 +238,36 @@ function selectAttack(phase: number, lastAttack: string, targetDist: number, att
 // Script handles: phase transitions, special attack dispatch.
 // ─────────────────────────────────────────────────────────────────────────────
 
+function debugActionbar(mob: Entity, ctx: AIContext): void {
+  const tick = system.currentTick;
+  const health = mob.getComponent("minecraft:health") as EntityHealthComponent | undefined;
+  const hp = health ? Math.ceil(health.currentValue) : "?";
+  const maxHp = health ? health.effectiveMax : "?";
+
+  const globalRemain = Math.max(0, ctx.globalCd - tick);
+
+  const cdParts = Object.entries(ctx.attackCds).map(([name, cd]) => {
+    const remain = Math.max(0, cd - tick);
+    const label = name.replace("_", " ");
+    return remain > 0 ? `§7${label}:§c${remain}t` : `§7${name.replace("_", " ")}:§aRDY`;
+  });
+
+  const bar = `§lRune Guardian§r §7[${hp}/${maxHp}]§r  GlobalCD:${globalRemain > 0 ? `§c${globalRemain}t` : "§aRDY"}  ${cdParts.join("  ")}`;
+
+  for (const p of world.getAllPlayers()) {
+    const dx = p.location.x - mob.location.x;
+    const dz = p.location.z - mob.location.z;
+    if (dx * dx + dz * dz <= 64 * 64) {
+      p.onScreenDisplay.setActionBar(bar);
+    }
+  }
+}
+
 function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
   if (!mob.isValid) return;
   const { phase, healthPct, globalCd, attackCds, lastAttack } = ctx;
+
+  debugActionbar(mob, ctx);
 
   // ── Phase transition check ────────────────────────────────────────────────
   const newPhase = computePhase(healthPct);
@@ -268,7 +295,7 @@ function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
 
   fn(mob, ctx, target);
   mob.setDynamicProperty("ai:last_attack", attack);
-  mob.setDynamicProperty(`ai:cd:${attack}`, system.currentTick + ATTACK_COOLDOWNS[attack]);
+  mob.setDynamicProperty(`ai:${attack}_cd`, system.currentTick + ATTACK_COOLDOWNS[attack]);
   mob.setDynamicProperty("ai:global_cd", system.currentTick + GLOBAL_ATTACK_CD);
 }
 
@@ -305,8 +332,6 @@ function executeThunderslap(mob: Entity, ctx: AIContext, _target: Entity): void 
           z: loc.z + (Math.random() - 0.5) * 8,
         });
       }
-      const health = mob.getComponent("minecraft:health") as EntityHealthComponent | undefined;
-      if (health) health.setCurrentValue(Math.min(health.currentValue + 15, health.effectiveMax));
     } catch { /* mob despawned before hit frame */ }
   }, 38);
 

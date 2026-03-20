@@ -53,6 +53,11 @@
 			},
 			"minecraft:follow_range": { "value": 30 },
 			"minecraft:fire_immune": {},
+			"minecraft:boss": {
+				"should_darken_sky": false,
+				"hud_range": 55,
+				"name": "Rune Guardian"
+			},
 
 			"minecraft:collision_box": {
 				"width": 0.9,

@@ -582,7 +582,7 @@ buildContext_fn = function(mob, dimension) {
   const globalCd = mob.getDynamicProperty("ai:global_cd") ?? 0;
   const attackCds = {};
   for (const name of Object.keys(ATTACK_COOLDOWNS)) {
-    attackCds[name] = mob.getDynamicProperty(`ai:cd:${name}`) ?? 0;
+    attackCds[name] = mob.getDynamicProperty(`ai:${name}_cd`) ?? 0;
   }
   return { phase, healthPct, dimension, globalCd, attackCds, lastAttack };
 };
@@ -624,17 +624,16 @@ var ATTACK_POOL = {
 var ATTACK_COOLDOWNS = {
   thunderslap: 100,
   // 5s
-  void_slices: 140,
-  // 7s
-  fire_breath: 80
-  // 4s
+  void_slices: 200,
+  // 10s
+  fire_breath: 280
+  // 14s
 };
 var ATTACK_RANGES = {
   thunderslap: [0, 4],
   // melee only
-  void_slices: [6, 24],
-  // minimum 6 — projectile fan, not for point-blank
-  fire_breath: [0, 8]
+  void_slices: [0, 4],
+  fire_breath: [0, 6]
   // 1/3 of 24
 };
 var GLOBAL_ATTACK_CD = 40;
@@ -691,10 +690,31 @@ function selectAttack(phase, lastAttack, targetDist, attackCds) {
   const candidates = pool.length > 1 ? pool.filter((a) => a !== lastAttack) : pool;
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
+function debugActionbar(mob, ctx) {
+  const tick = system2.currentTick;
+  const health = mob.getComponent("minecraft:health");
+  const hp = health ? Math.ceil(health.currentValue) : "?";
+  const maxHp = health ? health.effectiveMax : "?";
+  const globalRemain = Math.max(0, ctx.globalCd - tick);
+  const cdParts = Object.entries(ctx.attackCds).map(([name, cd]) => {
+    const remain = Math.max(0, cd - tick);
+    const label = name.replace("_", " ");
+    return remain > 0 ? `\xA77${label}:\xA7c${remain}t` : `\xA77${name.replace("_", " ")}:\xA7aRDY`;
+  });
+  const bar = `\xA7lRune Guardian\xA7r \xA77[${hp}/${maxHp}]\xA7r  GlobalCD:${globalRemain > 0 ? `\xA7c${globalRemain}t` : "\xA7aRDY"}  ${cdParts.join("  ")}`;
+  for (const p of world2.getAllPlayers()) {
+    const dx = p.location.x - mob.location.x;
+    const dz = p.location.z - mob.location.z;
+    if (dx * dx + dz * dz <= 64 * 64) {
+      p.onScreenDisplay.setActionBar(bar);
+    }
+  }
+}
 function RuneGuardianBrain(mob, ctx) {
   if (!mob.isValid)
     return;
   const { phase, healthPct, globalCd, attackCds, lastAttack } = ctx;
+  debugActionbar(mob, ctx);
   const newPhase = computePhase(healthPct);
   if (newPhase > phase) {
     mob.setDynamicProperty("ai:phase", newPhase);
@@ -718,7 +738,7 @@ function RuneGuardianBrain(mob, ctx) {
     return;
   fn(mob, ctx, target);
   mob.setDynamicProperty("ai:last_attack", attack);
-  mob.setDynamicProperty(`ai:cd:${attack}`, system2.currentTick + ATTACK_COOLDOWNS[attack]);
+  mob.setDynamicProperty(`ai:${attack}_cd`, system2.currentTick + ATTACK_COOLDOWNS[attack]);
   mob.setDynamicProperty("ai:global_cd", system2.currentTick + GLOBAL_ATTACK_CD);
 }
 function executeThunderslap(mob, ctx, _target) {
@@ -744,9 +764,6 @@ function executeThunderslap(mob, ctx, _target) {
           z: loc.z + (Math.random() - 0.5) * 8
         });
       }
-      const health = mob.getComponent("minecraft:health");
-      if (health)
-        health.setCurrentValue(Math.min(health.currentValue + 15, health.effectiveMax));
     } catch {
     }
   }, 38);
