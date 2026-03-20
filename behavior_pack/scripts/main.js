@@ -13,7 +13,7 @@ var __privateMethod = (obj, member, method) => {
 };
 
 // behavior_pack/scripts/main.ts
-import { world as world3, system as system3 } from "@minecraft/server";
+import { world as world3, system as system3, EntityInitializationCause } from "@minecraft/server";
 
 // behavior_pack/scripts/systems/RuneRegistry.ts
 var SpellEffectType = {
@@ -712,7 +712,7 @@ var ATTACK_RANGES = {
   fire_breath: [0, 6]
   // 1/3 of 24
 };
-var GLOBAL_ATTACK_CD = 200;
+var GLOBAL_ATTACK_CD = 100;
 var ATTACK_FNS = {
   thunderslap: executeThunderslap,
   void_slices: executeVoidSlices,
@@ -975,18 +975,19 @@ system3.run(() => {
   MobAISystem.init();
   world3.sendMessage("\xA7a[RuneSystem] \xA7fAll systems online.");
 });
-world3.afterEvents.entitySpawn.subscribe(({ entity }) => {
+world3.afterEvents.entitySpawn.subscribe(({ entity, cause }) => {
   if (entity.typeId === "rune:rune_guardian") {
     entity.addTag("ai:rune_guardian");
     return;
   }
-  if (entity.typeId === "minecraft:warden") {
+  if (entity.typeId === "minecraft:warden" && cause === EntityInitializationCause.Spawned) {
     if (Math.random() < 0.5) {
       const { location, dimension } = entity;
       system3.run(() => {
         try {
           entity.remove();
-          dimension.spawnEntity("rune:rune_guardian", location);
+          const guardian = dimension.spawnEntity("rune:rune_guardian", location);
+          guardian.triggerEvent("minecraft:spawn_emerging");
         } catch {
         }
       });

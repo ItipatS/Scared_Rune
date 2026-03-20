@@ -118,7 +118,7 @@ Global inter-attack cooldown: 200t after any attack fires.
 
 ### Warden replacement (main.ts)
 
-On `entitySpawn`, 50% chance a naturally spawned warden is replaced with a Rune Guardian. Removal deferred via `system.run()` to avoid removing an entity during its own spawn event.
+On `entitySpawn`, gated on `cause === EntityInitializationCause.Spawned` (natural only — spawn eggs and `/summon` resolve to `Event` in this API version). 50% chance the warden is replaced with a Rune Guardian. Removal deferred via `system.run()` to avoid removing an entity during its own spawn event.
 
 ---
 
@@ -266,7 +266,7 @@ Attachable uses `c.is_first_person` to switch between first and third person hol
 
 ## Warden → Guardian replacement
 
-On `entitySpawn`, 50% chance a naturally spawned warden is replaced with a Rune Guardian at the same location. Entity removal is deferred one tick via `system.run()` — calling `entity.remove()` during its own `entitySpawn` handler throws. This is a known Bedrock Script API constraint.
+On `entitySpawn`, gated on `cause === EntityInitializationCause.Spawned` — natural spawns only. Spawn eggs and `/summon` resolve to `EntityInitializationCause.Event` in `@minecraft/server` 1.15.0 (the enum has no explicit `Command` or `SpawnEgg` variant). 50% chance the warden is replaced with a Rune Guardian at the same location. Entity removal is deferred one tick via `system.run()` — calling `entity.remove()` during its own `entitySpawn` handler throws. This is a known Bedrock Script API constraint.
 
 ---
 
