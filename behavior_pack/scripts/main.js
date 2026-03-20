@@ -343,9 +343,9 @@ spawnBillboard_fn = function(player, element, slot, chantLevel) {
   vars.setFloat("variable.rune_type", rune?.typeIndex ?? 0);
   vars.setFloat("variable.chant_level", chantLevel);
   player.dimension.spawnParticle("rune:use_particle", {
-    x: loc.x + forward.x * 1.5 + perpX * sideOffset,
-    y: loc.y + 1.5,
-    z: loc.z + forward.z * 1.5 + perpZ * sideOffset
+    x: loc.x + forward.x * 3 + perpX * sideOffset,
+    y: loc.y + 1.7,
+    z: loc.z + forward.z * 3 + perpZ * sideOffset
   }, vars);
 };
 _executeSpell = new WeakSet();
@@ -464,6 +464,9 @@ tickHeldRune_fn = function(player) {
   vars.setFloat("variable.color_r", rune.colorR);
   vars.setFloat("variable.color_g", rune.colorG);
   vars.setFloat("variable.color_b", rune.colorB);
+  vars.setFloat("variable.spawn_rate", 3);
+  vars.setFloat("variable.radius", 0.5);
+  vars.setFloat("variable.size", 0.1);
   player.dimension.spawnParticle("rune:held_particle", {
     x: player.location.x,
     y: player.location.y + 1,
@@ -783,11 +786,27 @@ function debugActionbar(mob, ctx) {
     }
   }
 }
+function spawnAura(mob, dim, r, g, b, spawnRate, radius, size) {
+  const loc = mob.location;
+  const vars = new MolangVariableMap2();
+  vars.setFloat("variable.color_r", r);
+  vars.setFloat("variable.color_g", g);
+  vars.setFloat("variable.color_b", b);
+  vars.setFloat("variable.spawn_rate", spawnRate);
+  vars.setFloat("variable.radius", radius);
+  vars.setFloat("variable.size", size);
+  dim.spawnParticle("rune:held_particle", { x: loc.x, y: loc.y + 1, z: loc.z }, vars);
+}
 function RuneGuardianBrain(mob, ctx) {
   if (!mob.isValid)
     return;
   const { phase, healthPct, globalCd, attackCds, lastAttack } = ctx;
   debugActionbar(mob, ctx);
+  const idleR = ctx.phase >= 2 ? 0.65 : 0.4;
+  const idleB = ctx.phase >= 2 ? 0.85 : 0.6;
+  const idleRate = ctx.phase >= 2 ? 12 : 8;
+  const idleRadius = ctx.phase >= 2 ? 1.4 : 1.2;
+  spawnAura(mob, ctx.dimension, idleR, 0, idleB, idleRate, idleRadius, 0.22);
   const newPhase = computePhase(healthPct);
   if (newPhase > phase) {
     mob.setDynamicProperty("ai:phase", newPhase);
@@ -816,6 +835,7 @@ function RuneGuardianBrain(mob, ctx) {
 }
 function executeThunderslap(mob, ctx, _target) {
   mob.setProperty("rune:is_thunderslap", true);
+  spawnAura(mob, ctx.dimension, 0.95, 0.85, 0.1, 20, 1.2, 0.28);
   system2.runTimeout(() => {
     try {
       const loc = mob.location;
@@ -849,6 +869,7 @@ function executeThunderslap(mob, ctx, _target) {
 }
 function executeVoidSlices(mob, ctx, target) {
   mob.setProperty("rune:is_void_slices", true);
+  spawnAura(mob, ctx.dimension, 0.15, 0.05, 0.95, 20, 1.2, 0.28);
   const loc = mob.location;
   const spawned = [];
   const dx = target.location.x - loc.x;
@@ -885,6 +906,7 @@ function executeVoidSlices(mob, ctx, target) {
 }
 function executeFireBreath(mob, ctx, target) {
   mob.setProperty("rune:is_fire_breath", true);
+  spawnAura(mob, ctx.dimension, 1, 0.3, 0.05, 20, 1.2, 0.28);
   const mobLoc = mob.location;
   const dx0 = target.location.x - mobLoc.x;
   const dz0 = target.location.z - mobLoc.z;

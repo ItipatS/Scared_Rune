@@ -187,9 +187,9 @@ export class SpellCastSystem {
     vars.setFloat("variable.rune_type", rune?.typeIndex ?? 0);
     vars.setFloat("variable.chant_level", chantLevel);
     player.dimension.spawnParticle("rune:use_particle", {
-      x: loc.x + forward.x * 1.5 + perpX * sideOffset,
-      y: loc.y + 1.5,
-      z: loc.z + forward.z * 1.5 + perpZ * sideOffset,
+      x: loc.x + forward.x * 3 + perpX * sideOffset,
+      y: loc.y + 1.7,
+      z: loc.z + forward.z * 3 + perpZ * sideOffset,
     }, vars);
   }
 
@@ -318,9 +318,12 @@ export class SpellCastSystem {
     if (!rune) return;
 
     const vars = new MolangVariableMap();
-    vars.setFloat("variable.color_r", rune.colorR);
-    vars.setFloat("variable.color_g", rune.colorG);
-    vars.setFloat("variable.color_b", rune.colorB);
+    vars.setFloat("variable.color_r",    rune.colorR);
+    vars.setFloat("variable.color_g",    rune.colorG);
+    vars.setFloat("variable.color_b",    rune.colorB);
+    vars.setFloat("variable.spawn_rate", 3);
+    vars.setFloat("variable.radius",     0.5);
+    vars.setFloat("variable.size",       0.1);
     player.dimension.spawnParticle("rune:held_particle", {
       x: player.location.x,
       y: player.location.y + 1.0,

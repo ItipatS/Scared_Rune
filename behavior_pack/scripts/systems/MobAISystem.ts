@@ -166,7 +166,7 @@ const ATTACK_RANGES: Record<string, [number, number]> = {
 
 // Ticks the guardian must wait after ANY attack before firing the next one.
 // Prevents back-to-back chaining of different attacks.
-const GLOBAL_ATTACK_CD = 200; // 5s
+const GLOBAL_ATTACK_CD = 100; // 5s
 
 // Stub executors — replace with real implementations later
 const ATTACK_FNS: Record<string, AttackFn> = {
@@ -263,11 +263,33 @@ function debugActionbar(mob: Entity, ctx: AIContext): void {
   }
 }
 
+function spawnAura(
+  mob: Entity, dim: Dimension,
+  r: number, g: number, b: number,
+  spawnRate: number, radius: number, size: number
+): void {
+  const loc = mob.location;
+  const vars = new MolangVariableMap();
+  vars.setFloat("variable.color_r",    r);
+  vars.setFloat("variable.color_g",    g);
+  vars.setFloat("variable.color_b",    b);
+  vars.setFloat("variable.spawn_rate", spawnRate);
+  vars.setFloat("variable.radius",     radius);
+  vars.setFloat("variable.size",       size);
+  dim.spawnParticle("rune:held_particle", { x: loc.x, y: loc.y + 1.0, z: loc.z }, vars);
+}
+
 function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
   if (!mob.isValid) return;
   const { phase, healthPct, globalCd, attackCds, lastAttack } = ctx;
 
   debugActionbar(mob, ctx);
+  // Idle aura — phase 2+ gets brighter purple, no property reads needed
+  const idleR = ctx.phase >= 2 ? 0.65 : 0.4;
+  const idleB = ctx.phase >= 2 ? 0.85 : 0.6;
+  const idleRate = ctx.phase >= 2 ? 12 : 8;
+  const idleRadius = ctx.phase >= 2 ? 1.4 : 1.2;
+  spawnAura(mob, ctx.dimension, idleR, 0.0, idleB, idleRate, idleRadius, 0.22);
 
   // ── Phase transition check ────────────────────────────────────────────────
   const newPhase = computePhase(healthPct);
@@ -305,6 +327,7 @@ function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
 
 function executeThunderslap(mob: Entity, ctx: AIContext, _target: Entity): void {
   mob.setProperty("rune:is_thunderslap", true);
+  spawnAura(mob, ctx.dimension, 0.95, 0.85, 0.1, 20, 1.2, 0.28); // lightning yellow burst
 
   // Hit frame: sonic_boom body peaks at 1.9167s ≈ 38 ticks
   system.runTimeout(() => {
@@ -343,6 +366,7 @@ function executeThunderslap(mob: Entity, ctx: AIContext, _target: Entity): void 
 
 function executeVoidSlices(mob: Entity, ctx: AIContext, target: Entity): void {
   mob.setProperty("rune:is_void_slices", true);
+  spawnAura(mob, ctx.dimension, 0.15, 0.05, 0.95, 20, 1.2, 0.28); // void blue burst
 
   const loc = mob.location;
   const spawned: Entity[] = [];
@@ -379,6 +403,7 @@ function executeVoidSlices(mob: Entity, ctx: AIContext, target: Entity): void {
 
 function executeFireBreath(mob: Entity, ctx: AIContext, target: Entity): void {
   mob.setProperty("rune:is_fire_breath", true);
+  spawnAura(mob, ctx.dimension, 1.0, 0.3, 0.05, 20, 1.2, 0.28); // fire orange burst
 
   // Direction is mob → target on XZ plane, NOT view direction.
   // This ensures the breath always aims at the actual target regardless of
