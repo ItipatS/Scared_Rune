@@ -1,0 +1,299 @@
+// SpellCastSystem.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Rune chanting + spell casting.
+//
+// FLOW:
+//   1. Right-click a rune item      → chant (add to buffer, spawn billboard VFX)
+//   2. Attack entity or block       → cast whatever is in buffer (≥ 1 rune)
+//   3. Buffer auto-expires after COMBO_WINDOW_TICKS with no input
+//
+// CONFIG:
+//   MAX_COMBO_SIZE = 2   (max runes to chant before forced cast)
+//   MIN_COMBO_SIZE = 1   (min runes required to trigger a cast)
+//
+// DYNAMIC PROPERTIES (on player):
+//   "runesystem:combo_buffer" → JSON string[]   (element names)
+//   "runesystem:combo_tick"   → number          (tick of last chant)
+//
+// BILLBOARD VFX:
+//   Spawned via spawnParticle() — no entity context, q.property() unavailable.
+//   Colors passed via MolangVariableMap (variable.color_r/g/b, variable.rune_type, etc.).
+// ─────────────────────────────────────────────────────────────────────────────
+import { world, system, EntityDamageCause, MolangVariableMap, } from "@minecraft/server";
+import { RuneRegistry, SpellEffectType } from "./RuneRegistry.js";
+const COMBO_WINDOW_TICKS = 100; // 5 seconds
+const MAX_COMBO_SIZE = 2;
+const MIN_COMBO_SIZE = 1;
+export class SpellCastSystem {
+    static init() {
+        // Chant: right-click a rune item
+        world.afterEvents.itemUse.subscribe((event) => {
+            SpellCastSystem.#onChant(event);
+        });
+        // Cast: attack an entity while buffer is non-empty
+        world.afterEvents.entityHitEntity.subscribe((event) => {
+            SpellCastSystem.#onAttack(event.damagingEntity);
+        });
+        // Cast: attack a block (covers hitting ground, walls, etc.)
+        world.afterEvents.entityHitBlock.subscribe((event) => {
+            SpellCastSystem.#onAttack(event.damagingEntity);
+        });
+        system.runInterval(() => {
+            for (const player of world.getAllPlayers()) {
+                SpellCastSystem.#tickHeldRune(player);
+            }
+            SpellCastSystem.#tickComboExpiry();
+        }, 20);
+        // Billboard follow: re-spawn at updated head position every 2 ticks
+        system.runInterval(() => {
+            for (const player of world.getAllPlayers()) {
+                SpellCastSystem.#tickBillboard(player);
+            }
+        }, 2);
+        console.log("[SpellCastSystem] Initialized.");
+    }
+    // ── Chant (right-click rune) ─────────────────────────────────────────────
+    static #onChant(event) {
+        const player = event.source;
+        const item = event.itemStack;
+        if (!item)
+            return;
+        const rune = RuneRegistry.getRuneByItemId(item.typeId);
+        if (!rune)
+            return;
+        const buffer = SpellCastSystem.#getBuffer(player);
+        if (buffer.length >= MAX_COMBO_SIZE) {
+            player.sendMessage("§7[Rune] Buffer full — attack to cast.");
+            return;
+        }
+        buffer.push(rune.element);
+        SpellCastSystem.#setBuffer(player, buffer, system.currentTick);
+        player.sendMessage(`§b✦ §f${rune.display} §7[${buffer.length}/${MAX_COMBO_SIZE}] — Attack to cast`);
+    }
+    // ── Cast (attack entity or block) ────────────────────────────────────────
+    static #onAttack(attacker) {
+        if (attacker.typeId !== "minecraft:player")
+            return;
+        const player = attacker;
+        const buffer = SpellCastSystem.#getBuffer(player);
+        if (buffer.length < MIN_COMBO_SIZE)
+            return;
+        const spell = RuneRegistry.lookupSpell(buffer);
+        if (spell) {
+            player.sendMessage(`§6§l✦ ${spell.name}! §r§7${spell.description}`);
+            SpellCastSystem.#executeSpell(player, spell);
+            SpellCastSystem.#spawnCastVfx(player, buffer);
+        }
+        else {
+            player.sendMessage("§c[Rune] No combination found. Spell fizzled.");
+        }
+        SpellCastSystem.#clearBuffer(player);
+    }
+    // ── Cast VFX ─────────────────────────────────────────────────────────────
+    // Spawns element-specific VFX when a spell fires.
+    static #spawnCastVfx(player, elements) {
+        if (!elements.includes("fire"))
+            return;
+        const forward = player.getViewDirection();
+        const fwdLen = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
+        const fx = forward.x / fwdLen;
+        const fz = forward.z / fwdLen;
+        const chantLevel = elements.length; // 1 = small, 2 = bigger
+        const vars = new MolangVariableMap();
+        vars.setFloat("variable.dir_x", fx);
+        vars.setFloat("variable.dir_z", fz);
+        vars.setFloat("variable.scale", 0.6 + chantLevel * 0.3); // 0.9 at level 1, 1.2 at level 2
+        player.dimension.spawnParticle("rune:fire_breath", player.location, vars);
+    }
+    // ── Billboard Tick ───────────────────────────────────────────────────────
+    // Re-spawns one short-lived particle per buffered rune every 2 ticks so the
+    // billboard tracks the player's head direction continuously.
+    static #tickBillboard(player) {
+        const buffer = SpellCastSystem.#getBuffer(player);
+        if (buffer.length === 0)
+            return;
+        for (let i = 0; i < buffer.length; i++) {
+            SpellCastSystem.#spawnBillboard(player, buffer[i], i + 1, buffer.length);
+        }
+    }
+    // ── Billboard VFX ────────────────────────────────────────────────────────
+    // Spawns a particle in front of the player at eye level.
+    // Slot 1 = centered, Slot 2 = offset right so both appear side-by-side.
+    // Particle is static (no entity context) — replace with rune:billboard_<element>
+    // files once per-element particles exist.
+    static #spawnBillboard(player, element, slot, chantLevel) {
+        const rune = RuneRegistry.getRuneByElement(element);
+        const forward = player.getViewDirection();
+        const loc = player.location;
+        // Right-perpendicular in XZ (rotate forward 90° around Y)
+        const perpX = forward.z;
+        const perpZ = -forward.x;
+        const sideOffset = (slot - 1) * 0.5; // 0 for slot 1, 0.5 for slot 2
+        const vars = new MolangVariableMap();
+        vars.setFloat("variable.color_r", rune?.colorR ?? 1.0);
+        vars.setFloat("variable.color_g", rune?.colorG ?? 1.0);
+        vars.setFloat("variable.color_b", rune?.colorB ?? 1.0);
+        vars.setFloat("variable.rune_type", rune?.typeIndex ?? 0);
+        vars.setFloat("variable.chant_level", chantLevel);
+        player.dimension.spawnParticle("rune:use_particle", {
+            x: loc.x + forward.x * 1.5 + perpX * sideOffset,
+            y: loc.y + 1.5,
+            z: loc.z + forward.z * 1.5 + perpZ * sideOffset,
+        }, vars);
+    }
+    // ── Spell Execution ──────────────────────────────────────────────────────
+    static #executeSpell(player, spell) {
+        const dimension = player.dimension;
+        const location = player.location;
+        switch (spell.effectType) {
+            case SpellEffectType.DAMAGE: {
+                const targets = dimension.getEntities({
+                    location,
+                    maxDistance: 8,
+                    excludeTypes: ["minecraft:player"],
+                });
+                const target = SpellCastSystem.#getNearestEntity(player, targets);
+                if (target) {
+                    target.applyDamage(spell.power, { cause: EntityDamageCause.magic, damagingEntity: player });
+                    player.sendMessage(`§c⚡ Hit ${target.typeId} for ${spell.power} damage.`);
+                }
+                else {
+                    player.sendMessage("§7No target in range.");
+                }
+                break;
+            }
+            case SpellEffectType.AOE_DAMAGE: {
+                const targets = dimension.getEntities({
+                    location,
+                    maxDistance: spell.radius,
+                    excludeTypes: ["minecraft:player"],
+                });
+                let count = 0;
+                for (const target of targets) {
+                    target.applyDamage(spell.power, { cause: EntityDamageCause.magic, damagingEntity: player });
+                    count++;
+                }
+                player.sendMessage(`§c⚡ AOE hit ${count} entities for ${spell.power} damage.`);
+                break;
+            }
+            case SpellEffectType.HEAL: {
+                const healthComp = player.getComponent("minecraft:health");
+                if (healthComp) {
+                    const newHealth = Math.min(healthComp.currentValue + spell.power, healthComp.effectiveMax);
+                    healthComp.setCurrentValue(newHealth);
+                    player.sendMessage(`§a❤ Healed for ${spell.power}. HP: ${Math.floor(newHealth)}`);
+                }
+                break;
+            }
+            case SpellEffectType.BUFF: {
+                player.addEffect("resistance", spell.duration * 20, { amplifier: 1 });
+                player.sendMessage(`§a✦ ${spell.name} active for ${spell.duration}s.`);
+                break;
+            }
+            case SpellEffectType.DEBUFF: {
+                const targets = dimension.getEntities({
+                    location,
+                    maxDistance: spell.radius || 4,
+                    excludeTypes: ["minecraft:player"],
+                });
+                for (const target of targets) {
+                    target.addEffect("slowness", spell.duration * 20, { amplifier: 2 });
+                    target.addEffect("weakness", spell.duration * 20, { amplifier: 1 });
+                }
+                player.sendMessage(`§5☠ Debuff applied to nearby enemies for ${spell.duration}s.`);
+                break;
+            }
+            case SpellEffectType.KNOCKBACK: {
+                const targets = dimension.getEntities({
+                    location,
+                    maxDistance: spell.radius,
+                    excludeTypes: ["minecraft:player"],
+                });
+                for (const target of targets) {
+                    const dx = target.location.x - location.x;
+                    const dz = target.location.z - location.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz) || 1;
+                    target.applyKnockback(dx / dist, dz / dist, spell.power * 0.4, 0.4);
+                }
+                player.sendMessage("§e⚡ Knockback launched entities.");
+                break;
+            }
+            default:
+                player.sendMessage(`§7[Spell] '${spell.effectType}' not yet implemented.`);
+        }
+    }
+    // ── Held Rune Sync ───────────────────────────────────────────────────────
+    // Spawns held ambient particle every 20 ticks with color passed via
+    // MolangVariableMap. active_time: 1.1s slightly overlaps the 1s interval.
+    static #tickHeldRune(player) {
+        const inv = player.getComponent("minecraft:inventory");
+        if (!inv)
+            return;
+        const item = inv.container?.getItem(player.selectedSlotIndex);
+        const rune = item ? RuneRegistry.getRuneByItemId(item.typeId) : null;
+        if (!rune)
+            return;
+        const vars = new MolangVariableMap();
+        vars.setFloat("variable.color_r", rune.colorR);
+        vars.setFloat("variable.color_g", rune.colorG);
+        vars.setFloat("variable.color_b", rune.colorB);
+        player.dimension.spawnParticle("rune:held_particle", {
+            x: player.location.x,
+            y: player.location.y + 1.0,
+            z: player.location.z,
+        }, vars);
+    }
+    // ── Combo Expiry ─────────────────────────────────────────────────────────
+    static #tickComboExpiry() {
+        const currentTick = system.currentTick;
+        for (const player of world.getAllPlayers()) {
+            const timestamp = SpellCastSystem.#getBufferTimestamp(player);
+            if (timestamp === 0)
+                continue;
+            if (currentTick - timestamp > COMBO_WINDOW_TICKS) {
+                if (SpellCastSystem.#getBuffer(player).length > 0) {
+                    player.sendMessage("§7[Rune] Combo window expired.");
+                    SpellCastSystem.#clearBuffer(player);
+                }
+            }
+        }
+    }
+    // ── Dynamic Property Helpers ─────────────────────────────────────────────
+    static #getBuffer(player) {
+        try {
+            const raw = player.getDynamicProperty("runesystem:combo_buffer");
+            return raw ? JSON.parse(raw) : [];
+        }
+        catch {
+            return [];
+        }
+    }
+    static #setBuffer(player, buffer, tick) {
+        player.setDynamicProperty("runesystem:combo_buffer", JSON.stringify(buffer));
+        player.setDynamicProperty("runesystem:combo_tick", tick);
+    }
+    static #clearBuffer(player) {
+        player.setDynamicProperty("runesystem:combo_buffer", "[]");
+        player.setDynamicProperty("runesystem:combo_tick", 0);
+    }
+    static #getBufferTimestamp(player) {
+        return player.getDynamicProperty("runesystem:combo_tick") ?? 0;
+    }
+    // ── Utility ──────────────────────────────────────────────────────────────
+    static #getNearestEntity(player, entities) {
+        let nearest = null;
+        let nearestDist = Infinity;
+        const origin = player.location;
+        for (const entity of entities) {
+            const dx = entity.location.x - origin.x;
+            const dy = entity.location.y - origin.y;
+            const dz = entity.location.z - origin.z;
+            const dist = dx * dx + dy * dy + dz * dz;
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearest = entity;
+            }
+        }
+        return nearest;
+    }
+}

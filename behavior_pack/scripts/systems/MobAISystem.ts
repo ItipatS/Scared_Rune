@@ -29,15 +29,15 @@ const AI_TICK_INTERVAL = 10; // run every 10 ticks (2x per second)
 // ── Per-tick context ──────────────────────────────────────────────────────────
 
 interface AIContext {
-  phase:      number;
-  healthPct:  number;
-  dimension:  Dimension;
-  attackCd:   number;   // tick at which the next attack is allowed
+  phase: number;
+  healthPct: number;
+  dimension: Dimension;
+  attackCd: number;   // tick at which the next attack is allowed
   lastAttack: string;   // name of the last executed attack (for rotation)
 }
 
-type BrainFn    = (mob: Entity, ctx: AIContext) => void;
-type AttackFn   = (mob: Entity, ctx: AIContext) => void;
+type BrainFn = (mob: Entity, ctx: AIContext) => void;
+type AttackFn = (mob: Entity, ctx: AIContext) => void;
 
 // ── AI Registry ───────────────────────────────────────────────────────────────
 
@@ -53,6 +53,12 @@ export class MobAISystem {
       MobAISystem.#tick();
     }, AI_TICK_INTERVAL);
 
+    world.afterEvents.entityHurt.subscribe((ev) => {
+      if (ev.damageSource.damagingEntity?.typeId !== "rune:voidslice") return;
+      if (!(ev.hurtEntity instanceof Player)) return;
+      ev.hurtEntity.addEffect("darkness", 60, { amplifier: 0 });
+    });
+
     console.log("[MobAISystem] Initialized. AI types:", Object.keys(AI_REGISTRY).join(", "));
   }
 
@@ -60,7 +66,7 @@ export class MobAISystem {
     for (const player of world.getAllPlayers()) {
       const dimension = player.dimension;
       for (const [tag, brain] of Object.entries(AI_REGISTRY)) {
-        for (const mob of dimension.getEntities({ 
+        for (const mob of dimension.getEntities({
           tags: [tag],
           location: player.location,
           maxDistance: 128,
@@ -76,11 +82,11 @@ export class MobAISystem {
   }
 
   static #buildContext(mob: Entity, dimension: Dimension): AIContext {
-    const phase      = (mob.getDynamicProperty("ai:phase")       as number | undefined) ?? 1;
-    const attackCd   = (mob.getDynamicProperty("ai:attack_cd")   as number | undefined) ?? 0;
-    const lastAttack = (mob.getDynamicProperty("ai:last_attack")  as string | undefined) ?? "";
-    const health     = mob.getComponent("minecraft:health") as EntityHealthComponent | undefined;
-    const healthPct  = health ? health.currentValue / health.effectiveMax : 1;
+    const phase = (mob.getDynamicProperty("ai:phase") as number | undefined) ?? 1;
+    const attackCd = (mob.getDynamicProperty("ai:attack_cd") as number | undefined) ?? 0;
+    const lastAttack = (mob.getDynamicProperty("ai:last_attack") as string | undefined) ?? "";
+    const health = mob.getComponent("minecraft:health") as EntityHealthComponent | undefined;
+    const healthPct = health ? health.currentValue / health.effectiveMax : 1;
 
     return { phase, healthPct, dimension, attackCd, lastAttack };
   }
@@ -100,8 +106,8 @@ function onPhaseEnter(mob: Entity, ctx: AIContext, newPhase: number): void {
   const nearby = getCombatPlayers(mob, ctx, 40);
 
   if (newPhase === 2) {
-    mob.addEffect("strength",   1200, { amplifier: 1 });
-    mob.addEffect("speed",       600, { amplifier: 1 });
+    mob.addEffect("strength", 1200, { amplifier: 1 });
+    mob.addEffect("speed", 600, { amplifier: 1 });
     for (const p of nearby) {
       p.sendMessage("§6§l! The Rune Guardian stirs — its power grows !");
       p.applyDamage(6, { cause: EntityDamageCause.magic, damagingEntity: mob });
@@ -109,9 +115,9 @@ function onPhaseEnter(mob: Entity, ctx: AIContext, newPhase: number): void {
   }
 
   if (newPhase === 3) {
-    mob.addEffect("strength",   1200, { amplifier: 2 });
-    mob.addEffect("speed",       600, { amplifier: 2 });
-    mob.addEffect("resistance",  600, { amplifier: 1 });
+    mob.addEffect("strength", 1200, { amplifier: 2 });
+    mob.addEffect("speed", 600, { amplifier: 2 });
+    mob.addEffect("resistance", 600, { amplifier: 1 });
     for (const p of nearby) {
       p.sendMessage("§4§l⚠ THE RUNE GUARDIAN UNLEASHES ITS TRUE POWER ⚠");
       p.applyDamage(10, { cause: EntityDamageCause.magic, damagingEntity: mob });
@@ -133,15 +139,15 @@ const ATTACK_POOL: Record<number, string[]> = {
 // Ticks between attack uses (global cooldown applied after each attack)
 const ATTACK_COOLDOWNS: Record<string, number> = {
   thunderslap: 100, // 5s
-  void_slices:  140, // 7s
-  fire_breath:   80, // 4s
+  void_slices: 140, // 7s
+  fire_breath: 80, // 4s
 };
 
 // Stub executors — replace with real implementations later
 const ATTACK_FNS: Record<string, AttackFn> = {
   thunderslap: executeThunderslap,
-  void_slices:  executeVoidSlices,
-  fire_breath:  executeFireBreath,
+  void_slices: executeVoidSlices,
+  fire_breath: executeFireBreath,
 };
 
 function getCombatPlayers(mob: Entity, ctx: AIContext, range: number): Player[] {
@@ -156,7 +162,7 @@ function getCombatPlayers(mob: Entity, ctx: AIContext, range: number): Player[] 
 }
 
 function selectAttack(phase: number, lastAttack: string): string {
-  const pool       = ATTACK_POOL[phase] ?? ATTACK_POOL[1];
+  const pool = ATTACK_POOL[phase] ?? ATTACK_POOL[1];
   const candidates = pool.length > 1
     ? pool.filter(a => a !== lastAttack)  // avoid immediate repeat when possible
     : pool;
@@ -171,7 +177,7 @@ function selectAttack(phase: number, lastAttack: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
-   if (!mob.isValid) return;
+  if (!mob.isValid) return;
   const { phase, healthPct, attackCd, lastAttack } = ctx;
 
   // ── Phase transition check ────────────────────────────────────────────────
@@ -187,12 +193,12 @@ function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
   if (getCombatPlayers(mob, ctx, 24).length === 0) return; // no valid target
 
   const attack = selectAttack(phase, lastAttack);
-  const fn     = ATTACK_FNS[attack];
+  const fn = ATTACK_FNS[attack];
   if (!fn) return;
 
   fn(mob, ctx);
   mob.setDynamicProperty("ai:last_attack", attack);
-  mob.setDynamicProperty("ai:attack_cd",   system.currentTick + ATTACK_COOLDOWNS[attack]);
+  mob.setDynamicProperty("ai:attack_cd", system.currentTick + ATTACK_COOLDOWNS[attack]);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -248,7 +254,7 @@ function executeVoidSlices(mob: Entity, ctx: AIContext): void {
   // Scatter 3 slices at random angles, 4–7 blocks out
   for (let i = 0; i < 3; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const dist  = 4 + Math.random() * 3;
+    const dist = 4 + Math.random() * 3;
     try {
       const slice = ctx.dimension.spawnEntity("rune:voidslice", {
         x: loc.x + Math.cos(angle) * dist,
@@ -277,21 +283,21 @@ function executeFireBreath(mob: Entity, ctx: AIContext): void {
 
   // Spawn fire breath particle stream aligned to boss facing direction
   const forward = mob.getViewDirection();
-  const fwdLen  = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
+  const fwdLen = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
   const fx = forward.x / fwdLen;
   const fz = forward.z / fwdLen;
 
   const vars = new MolangVariableMap();
-  vars.setFloat("variable.dir_x",  fx);
-  vars.setFloat("variable.dir_z",  fz);
-  vars.setFloat("variable.scale",  1.5); // boss is bigger
+  vars.setFloat("variable.dir_x", fx);
+  vars.setFloat("variable.dir_z", fz);
+  vars.setFloat("variable.scale", 1.5); // boss is bigger
   ctx.dimension.spawnParticle("rune:fire_breath", mob.location, vars);
 
   // Roar animation: body fully leans forward at 1.6s = 32 ticks — that's the breath hit
   system.runTimeout(() => {
     try {
       const forward = mob.getViewDirection();
-      const loc     = mob.location;
+      const loc = mob.location;
 
       // Project forward onto XZ plane (ignore vertical aim — boss doesn't tilt to aim up/down)
       const fwdLen = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;

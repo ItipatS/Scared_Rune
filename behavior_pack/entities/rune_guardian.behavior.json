@@ -1,5 +1,5 @@
-﻿{
-	"format_version": "1.16.220",
+{
+	"format_version": "1.26.0",
 	"minecraft:entity": {
 		"description": {
 			"identifier": "rune:rune_guardian",
@@ -14,6 +14,9 @@
 			}
 		},
 		"component_groups": {
+			"digging": {
+				"minecraft:despawn": {}
+			},
 			"emerging": {
 				"minecraft:behavior.emerge": {
 					"duration": 7,
@@ -33,13 +36,6 @@
 		"components": {
 			"minecraft:type_family": {
 				"family": ["rune_guardian", "monster", "mob"]
-			},
-
-			"minecraft:anger_level": {
-				"max_anger": 0,
-				"angry_boost": 0,
-				"anger_decrements_by_one": true,
-				"on_increase_sounds": []
 			},
 
 			"minecraft:health": {
@@ -78,19 +74,15 @@
 			"minecraft:behavior.float": {
 				"priority": 0
 			},
-
-			"minecraft:behavior.sonic_boom": {
+			"minecraft:behavior.dig": {
 				"priority": 1,
-				"entity_types": [
-					{
-						"filters": {
-							"test": "has_tag",
-							"subject": "other",
-							"value": "__sonic_boom_disabled__"
-						},
-						"max_dist": 0
-					}
-				]
+				"duration": 4.5,
+				"idle_time": 60,
+				"vibration_is_disturbance": true,
+				"on_start": {
+					"event": "minecraft:start_digging",
+					"target": "self"
+				}
 			},
 			"minecraft:behavior.nearest_attackable_target": {
 				"priority": 2,
@@ -120,11 +112,8 @@
 			"minecraft:behavior.random_look_around": {
 				"priority": 11
 			},
+			"minecraft:vibration_listener": {},
 
-			"minecraft:breathable": {
-				"total_supply": 15,
-				"suffocate_time": 0
-			},
 			"minecraft:nameable": {},
 			"minecraft:experience_reward": {
 				"on_death": "query.last_hit_by_player ? 10 : 0"
@@ -156,6 +145,9 @@
 			}
 		},
 		"events": {
+			"minecraft:start_digging": {
+				"add": { "component_groups": ["digging"] }
+			},
 			"minecraft:spawn_emerging": {
 				"add": { "component_groups": ["emerging"] }
 			},

@@ -33,8 +33,8 @@ import {
 import { RuneRegistry, SpellDef, SpellEffectType } from "./RuneRegistry.js";
 
 const COMBO_WINDOW_TICKS = 100; // 5 seconds
-const MAX_COMBO_SIZE     = 2;
-const MIN_COMBO_SIZE     = 1;
+const MAX_COMBO_SIZE = 2;
+const MIN_COMBO_SIZE = 1;
 
 export class SpellCastSystem {
   static init(): void {
@@ -74,7 +74,7 @@ export class SpellCastSystem {
 
   static #onChant(event: ItemUseAfterEvent): void {
     const player = event.source;
-    const item   = event.itemStack;
+    const item = event.itemStack;
     if (!item) return;
 
     const rune = RuneRegistry.getRuneByItemId(item.typeId);
@@ -123,7 +123,7 @@ export class SpellCastSystem {
     if (!elements.includes("fire")) return;
 
     const forward = player.getViewDirection();
-    const fwdLen  = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
+    const fwdLen = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
     const fx = forward.x / fwdLen;
     const fz = forward.z / fwdLen;
 
@@ -155,21 +155,21 @@ export class SpellCastSystem {
   // files once per-element particles exist.
 
   static #spawnBillboard(player: Player, element: string, slot: number, chantLevel: number): void {
-    const rune    = RuneRegistry.getRuneByElement(element);
+    const rune = RuneRegistry.getRuneByElement(element);
     const forward = player.getViewDirection();
-    const loc     = player.location;
+    const loc = player.location;
 
     // Right-perpendicular in XZ (rotate forward 90° around Y)
-    const perpX =  forward.z;
+    const perpX = forward.z;
     const perpZ = -forward.x;
 
     const sideOffset = (slot - 1) * 0.5; // 0 for slot 1, 0.5 for slot 2
 
     const vars = new MolangVariableMap();
-    vars.setFloat("variable.color_r",     rune?.colorR    ?? 1.0);
-    vars.setFloat("variable.color_g",     rune?.colorG    ?? 1.0);
-    vars.setFloat("variable.color_b",     rune?.colorB    ?? 1.0);
-    vars.setFloat("variable.rune_type",   rune?.typeIndex ?? 0);
+    vars.setFloat("variable.color_r", rune?.colorR ?? 1.0);
+    vars.setFloat("variable.color_g", rune?.colorG ?? 1.0);
+    vars.setFloat("variable.color_b", rune?.colorB ?? 1.0);
+    vars.setFloat("variable.rune_type", rune?.typeIndex ?? 0);
     vars.setFloat("variable.chant_level", chantLevel);
     player.dimension.spawnParticle("rune:use_particle", {
       x: loc.x + forward.x * 1.5 + perpX * sideOffset,
@@ -182,7 +182,7 @@ export class SpellCastSystem {
 
   static #executeSpell(player: Player, spell: SpellDef): void {
     const dimension = player.dimension;
-    const location  = player.location;
+    const location = player.location;
 
     switch (spell.effectType) {
 
@@ -254,8 +254,8 @@ export class SpellCastSystem {
           excludeTypes: ["minecraft:player"],
         });
         for (const target of targets) {
-          const dx   = target.location.x - location.x;
-          const dz   = target.location.z - location.z;
+          const dx = target.location.x - location.x;
+          const dz = target.location.z - location.z;
           const dist = Math.sqrt(dx * dx + dz * dz) || 1;
           target.applyKnockback(dx / dist, dz / dist, spell.power * 0.4, 0.4);
         }

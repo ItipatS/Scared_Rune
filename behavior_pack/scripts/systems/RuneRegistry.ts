@@ -12,13 +12,13 @@
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface RuneDef {
-  id:        string;
-  element:   string;
-  display:   string;
+  id: string;
+  element: string;
+  display: string;
   typeIndex: number;
-  colorR:    number;
-  colorG:    number;
-  colorB:    number;
+  colorR: number;
+  colorG: number;
+  colorB: number;
 }
 
 export interface SpellDef {
@@ -34,13 +34,13 @@ export interface SpellDef {
 // Used as both a runtime value (SpellEffectType.DAMAGE) and a type alias.
 
 export const SpellEffectType = {
-  DAMAGE:     "damage",
-  HEAL:       "heal",
-  BUFF:       "buff",
-  DEBUFF:     "debuff",
+  DAMAGE: "damage",
+  HEAL: "heal",
+  BUFF: "buff",
+  DEBUFF: "debuff",
   AOE_DAMAGE: "aoe_damage",
-  SUMMON:     "summon",
-  KNOCKBACK:  "knockback",
+  SUMMON: "summon",
+  KNOCKBACK: "knockback",
 } as const;
 
 export type SpellEffectType = typeof SpellEffectType[keyof typeof SpellEffectType];
@@ -50,13 +50,13 @@ export type SpellEffectType = typeof SpellEffectType[keyof typeof SpellEffectTyp
 // Same base item model — only texture/sprite differs per rune.
 
 export const RUNES: Record<string, RuneDef> = {
-  fire:      { id: "rune:fire",      element: "fire",      display: "Fire Rune",      typeIndex: 0, colorR: 1.0, colorG: 0.2, colorB: 0.1 },
+  fire: { id: "rune:fire", element: "fire", display: "Fire Rune", typeIndex: 0, colorR: 1.0, colorG: 0.2, colorB: 0.1 },
   lightning: { id: "rune:lightning", element: "lightning", display: "Lightning Rune", typeIndex: 1, colorR: 0.9, colorG: 0.8, colorB: 0.1 },
-  water:     { id: "rune:water",     element: "water",     display: "Water Rune",     typeIndex: 2, colorR: 0.1, colorG: 0.5, colorB: 1.0 },
-  healing:   { id: "rune:healing",   element: "healing",   display: "Healing Rune",   typeIndex: 3, colorR: 0.2, colorG: 0.9, colorB: 0.7 },
-  earth:     { id: "rune:earth",     element: "earth",     display: "Earth Rune",     typeIndex: 4, colorR: 0.3, colorG: 0.7, colorB: 0.2 },
-  shadow:    { id: "rune:shadow",    element: "shadow",    display: "Shadow Rune",    typeIndex: 5, colorR: 0.5, colorG: 0.2, colorB: 0.9 },
-  wind:      { id: "rune:wind",      element: "wind",      display: "Wind Rune",      typeIndex: 6, colorR: 0.7, colorG: 0.9, colorB: 1.0 },
+  water: { id: "rune:water", element: "water", display: "Water Rune", typeIndex: 2, colorR: 0.1, colorG: 0.5, colorB: 1.0 },
+  healing: { id: "rune:healing", element: "healing", display: "Healing Rune", typeIndex: 3, colorR: 0.2, colorG: 0.9, colorB: 0.7 },
+  earth: { id: "rune:earth", element: "earth", display: "Earth Rune", typeIndex: 4, colorR: 0.3, colorG: 0.7, colorB: 0.2 },
+  shadow: { id: "rune:shadow", element: "shadow", display: "Shadow Rune", typeIndex: 5, colorR: 0.5, colorG: 0.2, colorB: 0.9 },
+  wind: { id: "rune:wind", element: "wind", display: "Wind Rune", typeIndex: 6, colorR: 0.7, colorG: 0.9, colorB: 1.0 },
 };
 
 // ── Combination Registry ──────────────────────────────────────────────────────

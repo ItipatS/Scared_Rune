@@ -517,6 +517,7 @@ var SpellCastSystem = _SpellCastSystem;
 import {
   world as world2,
   system as system2,
+  Player as Player2,
   EntityDamageCause as EntityDamageCause2,
   GameMode,
   MolangVariableMap as MolangVariableMap2
@@ -532,6 +533,13 @@ var _MobAISystem = class _MobAISystem {
       var _a;
       __privateMethod(_a = _MobAISystem, _tick, tick_fn).call(_a);
     }, AI_TICK_INTERVAL);
+    world2.afterEvents.entityHurt.subscribe((ev) => {
+      if (ev.damageSource.damagingEntity?.typeId !== "rune:voidslice")
+        return;
+      if (!(ev.hurtEntity instanceof Player2))
+        return;
+      ev.hurtEntity.addEffect("darkness", 60, { amplifier: 0 });
+    });
     console.log("[MobAISystem] Initialized. AI types:", Object.keys(AI_REGISTRY).join(", "));
   }
 };

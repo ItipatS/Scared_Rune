@@ -17,7 +17,6 @@
 			},
 			"particle_effects": {
 				"rune_held": "rune:held_particle",
-				"rune_idle": "rune:idle_particle",
 				"rune_chant": "rune:use_particle"
 			},
 			"animations": {

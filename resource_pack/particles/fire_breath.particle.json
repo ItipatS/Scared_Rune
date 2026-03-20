@@ -43,7 +43,11 @@
 			},
 			"minecraft:particle_initial_speed": "math.random(10, 50)",
 			"minecraft:particle_motion_dynamic": {
-				"linear_acceleration": ["math.random(-3, 3)", "math.random(-1, 2)", 0],
+				"linear_acceleration": [
+					"math.random(-3, 3)",
+					"math.random(-1, 2)",
+					0
+				],
 				"linear_drag_coefficient": 2
 			},
 			"minecraft:particle_appearance_billboard": {
@@ -56,9 +60,18 @@
 					"texture_width": 128,
 					"texture_height": 128,
 					"flipbook": {
-						"base_UV": [0, 24],
-						"size_UV": [8, 8],
-						"step_UV": [8, 0],
+						"base_UV": [
+							0,
+							24
+						],
+						"size_UV": [
+							8,
+							8
+						],
+						"step_UV": [
+							8,
+							0
+						],
 						"max_frame": 8,
 						"stretch_to_lifetime": true
 					}
