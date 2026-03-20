@@ -32,12 +32,12 @@ interface AIContext {
   phase: number;
   healthPct: number;
   dimension: Dimension;
-  attackCd: number;   // tick at which the next attack is allowed
-  lastAttack: string;   // name of the last executed attack (for rotation)
+  attackCds: Record<string, number>; // per-attack: tick at which that attack is next allowed
+  lastAttack: string;                // name of last executed attack (for rotation)
 }
 
 type BrainFn = (mob: Entity, ctx: AIContext) => void;
-type AttackFn = (mob: Entity, ctx: AIContext) => void;
+type AttackFn = (mob: Entity, ctx: AIContext, target: Entity) => void;
 
 // ── AI Registry ───────────────────────────────────────────────────────────────
 
@@ -83,12 +83,16 @@ export class MobAISystem {
 
   static #buildContext(mob: Entity, dimension: Dimension): AIContext {
     const phase = (mob.getDynamicProperty("ai:phase") as number | undefined) ?? 1;
-    const attackCd = (mob.getDynamicProperty("ai:attack_cd") as number | undefined) ?? 0;
     const lastAttack = (mob.getDynamicProperty("ai:last_attack") as string | undefined) ?? "";
     const health = mob.getComponent("minecraft:health") as EntityHealthComponent | undefined;
     const healthPct = health ? health.currentValue / health.effectiveMax : 1;
 
-    return { phase, healthPct, dimension, attackCd, lastAttack };
+    const attackCds: Record<string, number> = {};
+    for (const name of Object.keys(ATTACK_COOLDOWNS)) {
+      attackCds[name] = (mob.getDynamicProperty(`ai:cd:${name}`) as number | undefined) ?? 0;
+    }
+
+    return { phase, healthPct, dimension, attackCds, lastAttack };
   }
 }
 
@@ -103,7 +107,7 @@ function computePhase(healthPct: number): number {
 }
 
 function onPhaseEnter(mob: Entity, ctx: AIContext, newPhase: number): void {
-  const nearby = getCombatPlayers(mob, ctx, 40);
+  const nearby = getCombatTargets(mob, ctx, 40).filter(e => e instanceof Player) as Player[];
 
   if (newPhase === 2) {
     mob.addEffect("strength", 1200, { amplifier: 1 });
@@ -143,6 +147,13 @@ const ATTACK_COOLDOWNS: Record<string, number> = {
   fire_breath: 80, // 4s
 };
 
+// Max distance (blocks) at which each attack can trigger
+const ATTACK_RANGES: Record<string, number> = {
+  thunderslap: 4,  // melee only
+  void_slices: 24,
+  fire_breath: 8,  // 1/3 of 24
+};
+
 // Stub executors — replace with real implementations later
 const ATTACK_FNS: Record<string, AttackFn> = {
   thunderslap: executeThunderslap,
@@ -150,19 +161,55 @@ const ATTACK_FNS: Record<string, AttackFn> = {
   fire_breath: executeFireBreath,
 };
 
-function getCombatPlayers(mob: Entity, ctx: AIContext, range: number): Player[] {
-  return (ctx.dimension.getEntities({
-    type: "minecraft:player",
-    maxDistance: range,
-    location: mob.location,
-  }) as Player[]).filter(p => {
-    const mode = p.getGameMode();
-    return mode !== GameMode.creative && mode !== GameMode.spectator;
+// Returns all valid combat targets in range — players (non-creative/spectator) + other mobs.
+// Excludes the guardian itself and its own projectiles.
+function getCombatTargets(mob: Entity, ctx: AIContext, range: number): Entity[] {
+  const all = ctx.dimension.getEntities({ maxDistance: range, location: mob.location });
+  return all.filter(e => {
+    if (e === mob) return false;
+    if (e instanceof Player) {
+      const mode = e.getGameMode();
+      return mode !== GameMode.creative && mode !== GameMode.spectator;
+    }
+    // Exclude projectiles / non-damageable helper entities
+    const health = e.getComponent("minecraft:health") as EntityHealthComponent | undefined;
+    return health !== undefined;
   });
 }
 
-function selectAttack(phase: number, lastAttack: string): string {
-  const pool = ATTACK_POOL[phase] ?? ATTACK_POOL[1];
+// Returns the nearest combat target the mob is roughly facing (within ~60°).
+function getMainTarget(mob: Entity, ctx: AIContext, range: number): Entity | undefined {
+  const targets = getCombatTargets(mob, ctx, range);
+  if (targets.length === 0) return undefined;
+
+  const view = mob.getViewDirection();
+  const fwdLen = Math.sqrt(view.x * view.x + view.z * view.z) || 1;
+  const fx = view.x / fwdLen;
+  const fz = view.z / fwdLen;
+  const loc = mob.location;
+
+  let best: Entity | undefined;
+  let bestDist = Infinity;
+
+  for (const t of targets) {
+    const dx = t.location.x - loc.x;
+    const dz = t.location.z - loc.z;
+    const dist = Math.sqrt(dx * dx + dz * dz) || 1;
+    const dot = (dx / dist) * fx + (dz / dist) * fz;
+    if (dot > 0.5 && dist < bestDist) { // within ~60° arc
+      best = t;
+      bestDist = dist;
+    }
+  }
+
+  return best;
+}
+
+function selectAttack(phase: number, lastAttack: string, targetDist: number, attackCds: Record<string, number>): string | undefined {
+  const pool = (ATTACK_POOL[phase] ?? ATTACK_POOL[1])
+    .filter(a => targetDist <= (ATTACK_RANGES[a] ?? Infinity))
+    .filter(a => system.currentTick >= (attackCds[a] ?? 0));
+  if (pool.length === 0) return undefined;
   const candidates = pool.length > 1
     ? pool.filter(a => a !== lastAttack)  // avoid immediate repeat when possible
     : pool;
@@ -178,7 +225,7 @@ function selectAttack(phase: number, lastAttack: string): string {
 
 function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
   if (!mob.isValid) return;
-  const { phase, healthPct, attackCd, lastAttack } = ctx;
+  const { phase, healthPct, attackCds, lastAttack } = ctx;
 
   // ── Phase transition check ────────────────────────────────────────────────
   const newPhase = computePhase(healthPct);
@@ -189,23 +236,30 @@ function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
   }
 
   // ── Attack dispatch ───────────────────────────────────────────────────────
-  if (system.currentTick < attackCd) return; // still on cooldown
-  if (getCombatPlayers(mob, ctx, 24).length === 0) return; // no valid target
+  const target = getMainTarget(mob, ctx, 24);
+  if (!target) return; // no valid target in facing direction
 
-  const attack = selectAttack(phase, lastAttack);
+  const loc = mob.location;
+  const tdx = target.location.x - loc.x;
+  const tdz = target.location.z - loc.z;
+  const targetDist = Math.sqrt(tdx * tdx + tdz * tdz);
+
+  const attack = selectAttack(phase, lastAttack, targetDist, attackCds);
+  if (!attack) return; // no attack ready at this range
+
   const fn = ATTACK_FNS[attack];
   if (!fn) return;
 
-  fn(mob, ctx);
+  fn(mob, ctx, target);
   mob.setDynamicProperty("ai:last_attack", attack);
-  mob.setDynamicProperty("ai:attack_cd", system.currentTick + ATTACK_COOLDOWNS[attack]);
+  mob.setDynamicProperty(`ai:cd:${attack}`, system.currentTick + ATTACK_COOLDOWNS[attack]);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ATTACK STUBS — fill in per attack
 // ─────────────────────────────────────────────────────────────────────────────
 
-function executeThunderslap(mob: Entity, ctx: AIContext): void {
+function executeThunderslap(mob: Entity, ctx: AIContext, _target: Entity): void {
   mob.setProperty("rune:is_thunderslap", true);
 
   // Hit frame: sonic_boom body peaks at 1.9167s ≈ 38 ticks
@@ -213,22 +267,20 @@ function executeThunderslap(mob: Entity, ctx: AIContext): void {
     try {
       const loc = mob.location;
 
-      const nearby = ctx.dimension.getEntities({
-        type: "minecraft:player",
-        maxDistance: 6,
-        location: loc,
-      }) as Player[];
+      const nearby = getCombatTargets(mob, ctx, 6);
 
-      for (const p of nearby) {
-        // Knockback direction: away from boss
-        const dx = p.location.x - loc.x;
-        const dz = p.location.z - loc.z;
+      for (const target of nearby) {
+        const dx = target.location.x - loc.x;
+        const dz = target.location.z - loc.z;
         const len = Math.sqrt(dx * dx + dz * dz) || 1;
-        p.applyKnockback(dx / len, dz / len, 2.5, 0.5);
-        p.applyDamage(12, { cause: EntityDamageCause.entityAttack, damagingEntity: mob });
+        if (target instanceof Player) {
+          target.applyKnockback(dx / len, dz / len, 2.5, 0.5);
+        } else {
+          target.applyImpulse({ x: (dx / len) * 2.5, y: 0.5, z: (dz / len) * 2.5 });
+        }
       }
 
-      // Lightning strikes scattered across the slam zone
+      // Real lightning — hits everything, then heal guardian back for self-damage
       for (let i = 0; i < 3; i++) {
         ctx.dimension.spawnEntity("minecraft:lightning_bolt", {
           x: loc.x + (Math.random() - 0.5) * 8,
@@ -236,6 +288,8 @@ function executeThunderslap(mob: Entity, ctx: AIContext): void {
           z: loc.z + (Math.random() - 0.5) * 8,
         });
       }
+      const health = mob.getComponent("minecraft:health") as EntityHealthComponent | undefined;
+      if (health) health.setCurrentValue(Math.min(health.currentValue + 15, health.effectiveMax));
     } catch { /* mob despawned before hit frame */ }
   }, 38);
 
@@ -245,15 +299,18 @@ function executeThunderslap(mob: Entity, ctx: AIContext): void {
   }, 60);
 }
 
-function executeVoidSlices(mob: Entity, ctx: AIContext): void {
+function executeVoidSlices(mob: Entity, ctx: AIContext, target: Entity): void {
   mob.setProperty("rune:is_void_slices", true);
 
   const loc = mob.location;
   const spawned: Entity[] = [];
 
-  // Scatter 3 slices at random angles, 4–7 blocks out
+  // Spread 3 slices in a fan toward the target (-30°, 0°, +30°)
+  const dx = target.location.x - loc.x;
+  const dz = target.location.z - loc.z;
+  const baseAngle = Math.atan2(dz, dx);
   for (let i = 0; i < 3; i++) {
-    const angle = Math.random() * Math.PI * 2;
+    const angle = baseAngle + (i - 1) * (Math.PI / 6);
     const dist = 4 + Math.random() * 3;
     try {
       const slice = ctx.dimension.spawnEntity("rune:voidslice", {
@@ -278,50 +335,75 @@ function executeVoidSlices(mob: Entity, ctx: AIContext): void {
   }, 100);
 }
 
-function executeFireBreath(mob: Entity, ctx: AIContext): void {
+function executeFireBreath(mob: Entity, ctx: AIContext, target: Entity): void {
   mob.setProperty("rune:is_fire_breath", true);
 
-  // Spawn fire breath particle stream aligned to boss facing direction
-  const forward = mob.getViewDirection();
-  const fwdLen = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
-  const fx = forward.x / fwdLen;
-  const fz = forward.z / fwdLen;
+  // Direction is mob → target on XZ plane, NOT view direction.
+  // This ensures the breath always aims at the actual target regardless of
+  // whether the guardian has fully rotated to face it yet.
+  const mobLoc = mob.location;
+  const dx0 = target.location.x - mobLoc.x;
+  const dz0 = target.location.z - mobLoc.z;
+  const len0 = Math.sqrt(dx0 * dx0 + dz0 * dz0) || 1;
+  const fx0 = dx0 / len0;
+  const fz0 = dz0 / len0;
 
+  // Particle fires immediately at cast time — telegraphs the attack during wind-up.
+  // Uses the cast-time direction (fx0/fz0) since that's what the player sees.
   const vars = new MolangVariableMap();
-  vars.setFloat("variable.dir_x", fx);
-  vars.setFloat("variable.dir_z", fz);
-  vars.setFloat("variable.scale", 1.5); // boss is bigger
-  ctx.dimension.spawnParticle("rune:fire_breath", mob.location, vars);
+  vars.setFloat("variable.dir_x", fx0);
+  vars.setFloat("variable.dir_z", fz0);
+  vars.setFloat("variable.scale", 1.5);
+  ctx.dimension.spawnParticle("rune:fire_breath", mobLoc, vars);
+
+  // Snapshot target id — re-resolve at hit frame so the cone tracks movement.
+  const targetId = target.id;
 
   // Roar animation: body fully leans forward at 1.6s = 32 ticks — that's the breath hit
   system.runTimeout(() => {
     try {
-      const forward = mob.getViewDirection();
       const loc = mob.location;
 
-      // Project forward onto XZ plane (ignore vertical aim — boss doesn't tilt to aim up/down)
-      const fwdLen = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
-      const fx = forward.x / fwdLen;
-      const fz = forward.z / fwdLen;
+      // Re-resolve target by id to get its updated position at hit frame
+      const liveTarget = ctx.dimension.getEntities({ location: loc, maxDistance: 20 })
+        .find(e => e.id === targetId);
 
-      const nearby = ctx.dimension.getEntities({
-        type: "minecraft:player",
-        maxDistance: 10,
-        location: loc,
-      }) as Player[];
+      // Compute final aim direction: prefer live target pos, fall back to snapshot
+      let fx: number, fz: number;
+      if (liveTarget) {
+        const ddx = liveTarget.location.x - loc.x;
+        const ddz = liveTarget.location.z - loc.z;
+        const ddlen = Math.sqrt(ddx * ddx + ddz * ddz) || 1;
+        fx = ddx / ddlen;
+        fz = ddz / ddlen;
+      } else {
+        fx = fx0;
+        fz = fz0;
+      }
 
-      for (const p of nearby) {
-        // XZ direction from boss to player
-        const dx = p.location.x - loc.x;
-        const dz = p.location.z - loc.z;
-        const dlen = Math.sqrt(dx * dx + dz * dz) || 1;
-        const dot = (dx / dlen) * fx + (dz / dlen) * fz;
+      const nearby = getCombatTargets(mob, ctx, 10);
 
-        // dot > cos(50°) ≈ 0.64 → player is within the breath cone
+      for (const e of nearby) {
+        const ex = e.location.x - loc.x;
+        const ez = e.location.z - loc.z;
+        const elen = Math.sqrt(ex * ex + ez * ez) || 1;
+        const dot = (ex / elen) * fx + (ez / elen) * fz;
+
+        // dot > cos(50°) ≈ 0.64 → within breath cone
         if (dot > 0.64) {
-          p.applyDamage(8, { cause: EntityDamageCause.fire, damagingEntity: mob });
-          p.setOnFire(3, true); // burn for 3 seconds
+          e.applyDamage(8, { cause: EntityDamageCause.fire, damagingEntity: mob });
+          e.setOnFire(3, true);
         }
+      }
+
+      // Debug: particle ring showing breath reach (remove when done)
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        ctx.dimension.spawnParticle("minecraft:basic_flame_particle", {
+          x: loc.x + Math.cos(a) * 10,
+          y: loc.y + 1,
+          z: loc.z + Math.sin(a) * 10,
+        });
       }
     } catch { /* ok */ }
   }, 32);

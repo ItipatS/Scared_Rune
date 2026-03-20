@@ -566,11 +566,14 @@ tick_fn = function() {
 _buildContext = new WeakSet();
 buildContext_fn = function(mob, dimension) {
   const phase = mob.getDynamicProperty("ai:phase") ?? 1;
-  const attackCd = mob.getDynamicProperty("ai:attack_cd") ?? 0;
   const lastAttack = mob.getDynamicProperty("ai:last_attack") ?? "";
   const health = mob.getComponent("minecraft:health");
   const healthPct = health ? health.currentValue / health.effectiveMax : 1;
-  return { phase, healthPct, dimension, attackCd, lastAttack };
+  const attackCds = {};
+  for (const name of Object.keys(ATTACK_COOLDOWNS)) {
+    attackCds[name] = mob.getDynamicProperty(`ai:cd:${name}`) ?? 0;
+  }
+  return { phase, healthPct, dimension, attackCds, lastAttack };
 };
 __privateAdd(_MobAISystem, _tick);
 __privateAdd(_MobAISystem, _buildContext);
@@ -583,7 +586,7 @@ function computePhase(healthPct) {
   return 3;
 }
 function onPhaseEnter(mob, ctx, newPhase) {
-  const nearby = getCombatPlayers(mob, ctx, 40);
+  const nearby = getCombatTargets(mob, ctx, 40).filter((e) => e instanceof Player2);
   if (newPhase === 2) {
     mob.addEffect("strength", 1200, { amplifier: 1 });
     mob.addEffect("speed", 600, { amplifier: 1 });
@@ -615,64 +618,103 @@ var ATTACK_COOLDOWNS = {
   fire_breath: 80
   // 4s
 };
+var ATTACK_RANGES = {
+  thunderslap: 4,
+  // melee only
+  void_slices: 24,
+  fire_breath: 8
+  // 1/3 of 24
+};
 var ATTACK_FNS = {
   thunderslap: executeThunderslap,
   void_slices: executeVoidSlices,
   fire_breath: executeFireBreath
 };
-function getCombatPlayers(mob, ctx, range) {
-  return ctx.dimension.getEntities({
-    type: "minecraft:player",
-    maxDistance: range,
-    location: mob.location
-  }).filter((p) => {
-    const mode = p.getGameMode();
-    return mode !== GameMode.creative && mode !== GameMode.spectator;
+function getCombatTargets(mob, ctx, range) {
+  const all = ctx.dimension.getEntities({ maxDistance: range, location: mob.location });
+  return all.filter((e) => {
+    if (e === mob)
+      return false;
+    if (e instanceof Player2) {
+      const mode = e.getGameMode();
+      return mode !== GameMode.creative && mode !== GameMode.spectator;
+    }
+    const health = e.getComponent("minecraft:health");
+    return health !== void 0;
   });
 }
-function selectAttack(phase, lastAttack) {
-  const pool = ATTACK_POOL[phase] ?? ATTACK_POOL[1];
+function getMainTarget(mob, ctx, range) {
+  const targets = getCombatTargets(mob, ctx, range);
+  if (targets.length === 0)
+    return void 0;
+  const view = mob.getViewDirection();
+  const fwdLen = Math.sqrt(view.x * view.x + view.z * view.z) || 1;
+  const fx = view.x / fwdLen;
+  const fz = view.z / fwdLen;
+  const loc = mob.location;
+  let best;
+  let bestDist = Infinity;
+  for (const t of targets) {
+    const dx = t.location.x - loc.x;
+    const dz = t.location.z - loc.z;
+    const dist = Math.sqrt(dx * dx + dz * dz) || 1;
+    const dot = dx / dist * fx + dz / dist * fz;
+    if (dot > 0.5 && dist < bestDist) {
+      best = t;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+function selectAttack(phase, lastAttack, targetDist, attackCds) {
+  const pool = (ATTACK_POOL[phase] ?? ATTACK_POOL[1]).filter((a) => targetDist <= (ATTACK_RANGES[a] ?? Infinity)).filter((a) => system2.currentTick >= (attackCds[a] ?? 0));
+  if (pool.length === 0)
+    return void 0;
   const candidates = pool.length > 1 ? pool.filter((a) => a !== lastAttack) : pool;
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 function RuneGuardianBrain(mob, ctx) {
   if (!mob.isValid)
     return;
-  const { phase, healthPct, attackCd, lastAttack } = ctx;
+  const { phase, healthPct, attackCds, lastAttack } = ctx;
   const newPhase = computePhase(healthPct);
   if (newPhase > phase) {
     mob.setDynamicProperty("ai:phase", newPhase);
     onPhaseEnter(mob, ctx, newPhase);
     return;
   }
-  if (system2.currentTick < attackCd)
+  const target = getMainTarget(mob, ctx, 24);
+  if (!target)
     return;
-  if (getCombatPlayers(mob, ctx, 24).length === 0)
+  const loc = mob.location;
+  const tdx = target.location.x - loc.x;
+  const tdz = target.location.z - loc.z;
+  const targetDist = Math.sqrt(tdx * tdx + tdz * tdz);
+  const attack = selectAttack(phase, lastAttack, targetDist, attackCds);
+  if (!attack)
     return;
-  const attack = selectAttack(phase, lastAttack);
   const fn = ATTACK_FNS[attack];
   if (!fn)
     return;
-  fn(mob, ctx);
+  fn(mob, ctx, target);
   mob.setDynamicProperty("ai:last_attack", attack);
-  mob.setDynamicProperty("ai:attack_cd", system2.currentTick + ATTACK_COOLDOWNS[attack]);
+  mob.setDynamicProperty(`ai:cd:${attack}`, system2.currentTick + ATTACK_COOLDOWNS[attack]);
 }
-function executeThunderslap(mob, ctx) {
+function executeThunderslap(mob, ctx, _target) {
   mob.setProperty("rune:is_thunderslap", true);
   system2.runTimeout(() => {
     try {
       const loc = mob.location;
-      const nearby = ctx.dimension.getEntities({
-        type: "minecraft:player",
-        maxDistance: 6,
-        location: loc
-      });
-      for (const p of nearby) {
-        const dx = p.location.x - loc.x;
-        const dz = p.location.z - loc.z;
+      const nearby = getCombatTargets(mob, ctx, 6);
+      for (const target of nearby) {
+        const dx = target.location.x - loc.x;
+        const dz = target.location.z - loc.z;
         const len = Math.sqrt(dx * dx + dz * dz) || 1;
-        p.applyKnockback(dx / len, dz / len, 2.5, 0.5);
-        p.applyDamage(12, { cause: EntityDamageCause2.entityAttack, damagingEntity: mob });
+        if (target instanceof Player2) {
+          target.applyKnockback(dx / len, dz / len, 2.5, 0.5);
+        } else {
+          target.applyImpulse({ x: dx / len * 2.5, y: 0.5, z: dz / len * 2.5 });
+        }
       }
       for (let i = 0; i < 3; i++) {
         ctx.dimension.spawnEntity("minecraft:lightning_bolt", {
@@ -681,6 +723,9 @@ function executeThunderslap(mob, ctx) {
           z: loc.z + (Math.random() - 0.5) * 8
         });
       }
+      const health = mob.getComponent("minecraft:health");
+      if (health)
+        health.setCurrentValue(Math.min(health.currentValue + 15, health.effectiveMax));
     } catch {
     }
   }, 38);
@@ -691,12 +736,15 @@ function executeThunderslap(mob, ctx) {
     }
   }, 60);
 }
-function executeVoidSlices(mob, ctx) {
+function executeVoidSlices(mob, ctx, target) {
   mob.setProperty("rune:is_void_slices", true);
   const loc = mob.location;
   const spawned = [];
+  const dx = target.location.x - loc.x;
+  const dz = target.location.z - loc.z;
+  const baseAngle = Math.atan2(dz, dx);
   for (let i = 0; i < 3; i++) {
-    const angle = Math.random() * Math.PI * 2;
+    const angle = baseAngle + (i - 1) * (Math.PI / 6);
     const dist = 4 + Math.random() * 3;
     try {
       const slice = ctx.dimension.spawnEntity("rune:voidslice", {
@@ -724,38 +772,53 @@ function executeVoidSlices(mob, ctx) {
     }
   }, 100);
 }
-function executeFireBreath(mob, ctx) {
+function executeFireBreath(mob, ctx, target) {
   mob.setProperty("rune:is_fire_breath", true);
-  const forward = mob.getViewDirection();
-  const fwdLen = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
-  const fx = forward.x / fwdLen;
-  const fz = forward.z / fwdLen;
+  const mobLoc = mob.location;
+  const dx0 = target.location.x - mobLoc.x;
+  const dz0 = target.location.z - mobLoc.z;
+  const len0 = Math.sqrt(dx0 * dx0 + dz0 * dz0) || 1;
+  const fx0 = dx0 / len0;
+  const fz0 = dz0 / len0;
   const vars = new MolangVariableMap2();
-  vars.setFloat("variable.dir_x", fx);
-  vars.setFloat("variable.dir_z", fz);
+  vars.setFloat("variable.dir_x", fx0);
+  vars.setFloat("variable.dir_z", fz0);
   vars.setFloat("variable.scale", 1.5);
-  ctx.dimension.spawnParticle("rune:fire_breath", mob.location, vars);
+  ctx.dimension.spawnParticle("rune:fire_breath", mobLoc, vars);
+  const targetId = target.id;
   system2.runTimeout(() => {
     try {
-      const forward2 = mob.getViewDirection();
       const loc = mob.location;
-      const fwdLen2 = Math.sqrt(forward2.x * forward2.x + forward2.z * forward2.z) || 1;
-      const fx2 = forward2.x / fwdLen2;
-      const fz2 = forward2.z / fwdLen2;
-      const nearby = ctx.dimension.getEntities({
-        type: "minecraft:player",
-        maxDistance: 10,
-        location: loc
-      });
-      for (const p of nearby) {
-        const dx = p.location.x - loc.x;
-        const dz = p.location.z - loc.z;
-        const dlen = Math.sqrt(dx * dx + dz * dz) || 1;
-        const dot = dx / dlen * fx2 + dz / dlen * fz2;
+      const liveTarget = ctx.dimension.getEntities({ location: loc, maxDistance: 20 }).find((e) => e.id === targetId);
+      let fx, fz;
+      if (liveTarget) {
+        const ddx = liveTarget.location.x - loc.x;
+        const ddz = liveTarget.location.z - loc.z;
+        const ddlen = Math.sqrt(ddx * ddx + ddz * ddz) || 1;
+        fx = ddx / ddlen;
+        fz = ddz / ddlen;
+      } else {
+        fx = fx0;
+        fz = fz0;
+      }
+      const nearby = getCombatTargets(mob, ctx, 10);
+      for (const e of nearby) {
+        const ex = e.location.x - loc.x;
+        const ez = e.location.z - loc.z;
+        const elen = Math.sqrt(ex * ex + ez * ez) || 1;
+        const dot = ex / elen * fx + ez / elen * fz;
         if (dot > 0.64) {
-          p.applyDamage(8, { cause: EntityDamageCause2.fire, damagingEntity: mob });
-          p.setOnFire(3, true);
+          e.applyDamage(8, { cause: EntityDamageCause2.fire, damagingEntity: mob });
+          e.setOnFire(3, true);
         }
+      }
+      for (let i = 0; i < 16; i++) {
+        const a = i / 16 * Math.PI * 2;
+        ctx.dimension.spawnParticle("minecraft:basic_flame_particle", {
+          x: loc.x + Math.cos(a) * 10,
+          y: loc.y + 1,
+          z: loc.z + Math.sin(a) * 10
+        });
       }
     } catch {
     }
