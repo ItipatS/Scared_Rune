@@ -38,18 +38,29 @@ const MIN_COMBO_SIZE = 1;
 
 export class SpellCastSystem {
   static init(): void {
-    // Chant: right-click a rune item
+    // Chant: right-click a rune item. Cast: right-click the wand.
     world.afterEvents.itemUse.subscribe((event: ItemUseAfterEvent) => {
-      SpellCastSystem.#onChant(event);
+      if (event.itemStack?.typeId === "rune:wand") {
+        SpellCastSystem.#onAttack(event.source);
+      } else {
+        SpellCastSystem.#onChant(event);
+      }
     });
 
-    // Cast: attack an entity while buffer is non-empty
+    // Cast: attack an entity or block while buffer is non-empty.
+    // Dedup set prevents both events firing on the same swing (e.g. entity on a block).
+    const castThisTick = new Set<string>();
+    system.runInterval(() => castThisTick.clear(), 1);
+
     world.afterEvents.entityHitEntity.subscribe((event) => {
+      if (castThisTick.has(event.damagingEntity.id)) return;
+      castThisTick.add(event.damagingEntity.id);
       SpellCastSystem.#onAttack(event.damagingEntity);
     });
 
-    // Cast: attack a block (covers hitting ground, walls, etc.)
     world.afterEvents.entityHitBlock.subscribe((event) => {
+      if (castThisTick.has(event.damagingEntity.id)) return;
+      castThisTick.add(event.damagingEntity.id);
       SpellCastSystem.#onAttack(event.damagingEntity);
     });
 
@@ -107,8 +118,9 @@ export class SpellCastSystem {
     const spell = RuneRegistry.lookupSpell(buffer);
     if (spell) {
       player.sendMessage(`§6§l✦ ${spell.name}! §r§7${spell.description}`);
+      SpellCastSystem.#destroyUsedRunes(player, buffer);
       SpellCastSystem.#executeSpell(player, spell);
-      SpellCastSystem.#spawnCastVfx(player, buffer);
+      SpellCastSystem.#spawnCastVfx(player, buffer, spell);
     } else {
       player.sendMessage("§c[Rune] No combination found. Spell fizzled.");
     }
@@ -119,7 +131,7 @@ export class SpellCastSystem {
   // ── Cast VFX ─────────────────────────────────────────────────────────────
   // Spawns element-specific VFX when a spell fires.
 
-  static #spawnCastVfx(player: Player, elements: string[]): void {
+  static #spawnCastVfx(player: Player, elements: string[], spell: SpellDef): void {
     if (!elements.includes("fire")) return;
 
     const forward = player.getViewDirection();
@@ -127,14 +139,14 @@ export class SpellCastSystem {
     const fx = forward.x / fwdLen;
     const fz = forward.z / fwdLen;
 
-    const chantLevel = elements.length; // 1 = small, 2 = bigger
+    const isFlameBreath = spell.effectType === SpellEffectType.FIRE_BREATH;
     const vars = new MolangVariableMap();
     vars.setFloat("variable.dir_x", fx);
     vars.setFloat("variable.dir_z", fz);
-    vars.setFloat("variable.scale", 0.6 + chantLevel * 0.3); // 0.9 at level 1, 1.2 at level 2
-    vars.setFloat("variable.min_size", 1.0);
-    vars.setFloat("variable.max_size", 2.0); // player: tight cone
-    vars.setFloat("variable.spawn_rate", 50); // player: sparser, smaller area
+    vars.setFloat("variable.scale", isFlameBreath ? 1.5 : 0.9);
+    vars.setFloat("variable.min_size", isFlameBreath ? 1.5 : 1.0);
+    vars.setFloat("variable.max_size", isFlameBreath ? 3.5 : 2.0);
+    vars.setFloat("variable.spawn_rate", isFlameBreath ? 150 : 50);
 
     player.dimension.spawnParticle("rune:fire_breath", player.location, vars);
   }
@@ -266,6 +278,29 @@ export class SpellCastSystem {
         break;
       }
 
+      case SpellEffectType.FIRE_BREATH: {
+        const forward = player.getViewDirection();
+        const targets = dimension.getEntities({
+          location,
+          maxDistance: spell.radius,
+          excludeTypes: ["minecraft:player"],
+        });
+        let count = 0;
+        for (const target of targets) {
+          const dx = target.location.x - location.x;
+          const dy = target.location.y - location.y;
+          const dz = target.location.z - location.z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+          const dot = (forward.x * dx + forward.y * dy + forward.z * dz) / dist;
+          if (dot > 0.3) { // ~72° cone
+            target.applyDamage(spell.power, { cause: EntityDamageCause.fire, damagingEntity: player });
+            count++;
+          }
+        }
+        player.sendMessage(`§c🔥 Flame Breath scorched ${count} target${count !== 1 ? "s" : ""}!`);
+        break;
+      }
+
       default:
         player.sendMessage(`§7[Spell] '${spell.effectType}' not yet implemented.`);
     }
@@ -305,6 +340,31 @@ export class SpellCastSystem {
           player.sendMessage("§7[Rune] Combo window expired.");
           SpellCastSystem.#clearBuffer(player);
         }
+      }
+    }
+  }
+
+  // ── Item Destruction ─────────────────────────────────────────────────────
+  // Removes one item per rune element used in the buffer from the player's inventory.
+
+  static #destroyUsedRunes(player: Player, buffer: string[]): void {
+    const inv = player.getComponent("minecraft:inventory");
+    if (!inv?.container) return;
+    const container = inv.container;
+    const toConsume = [...buffer];
+    for (let slot = 0; slot < container.size && toConsume.length > 0; slot++) {
+      const item = container.getItem(slot);
+      if (!item) continue;
+      const rune = RuneRegistry.getRuneByItemId(item.typeId);
+      if (!rune) continue;
+      const idx = toConsume.indexOf(rune.element);
+      if (idx === -1) continue;
+      toConsume.splice(idx, 1);
+      if (item.amount <= 1) {
+        container.setItem(slot, undefined);
+      } else {
+        item.amount--;
+        container.setItem(slot, item);
       }
     }
   }

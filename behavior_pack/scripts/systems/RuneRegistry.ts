@@ -41,6 +41,7 @@ export const SpellEffectType = {
   AOE_DAMAGE: "aoe_damage",
   SUMMON: "summon",
   KNOCKBACK: "knockback",
+  FIRE_BREATH: "fire_breath",
 } as const;
 
 export type SpellEffectType = typeof SpellEffectType[keyof typeof SpellEffectType];
@@ -110,6 +111,13 @@ export const SPELL_COMBINATIONS: Record<string, SpellDef> = {
   },
 
   // ── 2-Rune Spells ──
+  "fire+fire": {
+    name: "Flame Breath",
+    effectType: SpellEffectType.FIRE_BREATH,
+    power: 14, radius: 8, duration: 0,
+    description: "Twin runes ignite a torrent of flames that scorches everything ahead.",
+  },
+
   "fire+lightning": {
     name: "Flame Zap",
     effectType: SpellEffectType.DAMAGE,

@@ -23,7 +23,8 @@ var SpellEffectType = {
   DEBUFF: "debuff",
   AOE_DAMAGE: "aoe_damage",
   SUMMON: "summon",
-  KNOCKBACK: "knockback"
+  KNOCKBACK: "knockback",
+  FIRE_BREATH: "fire_breath"
 };
 var RUNES = {
   fire: { id: "rune:fire", element: "fire", display: "Fire Rune", typeIndex: 0, colorR: 1, colorG: 0.2, colorB: 0.1 },
@@ -93,6 +94,14 @@ var SPELL_COMBINATIONS = {
     description: "A burst of wind pushes enemies back."
   },
   // ── 2-Rune Spells ──
+  "fire+fire": {
+    name: "Flame Breath",
+    effectType: SpellEffectType.FIRE_BREATH,
+    power: 14,
+    radius: 8,
+    duration: 0,
+    description: "Twin runes ignite a torrent of flames that scorches everything ahead."
+  },
   "fire+lightning": {
     name: "Flame Zap",
     effectType: SpellEffectType.DAMAGE,
@@ -207,19 +216,31 @@ import {
 var COMBO_WINDOW_TICKS = 100;
 var MAX_COMBO_SIZE = 2;
 var MIN_COMBO_SIZE = 1;
-var _onChant, onChant_fn, _onAttack, onAttack_fn, _spawnCastVfx, spawnCastVfx_fn, _tickBillboard, tickBillboard_fn, _spawnBillboard, spawnBillboard_fn, _executeSpell, executeSpell_fn, _tickHeldRune, tickHeldRune_fn, _tickComboExpiry, tickComboExpiry_fn, _getBuffer, getBuffer_fn, _setBuffer, setBuffer_fn, _clearBuffer, clearBuffer_fn, _getBufferTimestamp, getBufferTimestamp_fn, _getNearestEntity, getNearestEntity_fn;
+var _onChant, onChant_fn, _onAttack, onAttack_fn, _spawnCastVfx, spawnCastVfx_fn, _tickBillboard, tickBillboard_fn, _spawnBillboard, spawnBillboard_fn, _executeSpell, executeSpell_fn, _tickHeldRune, tickHeldRune_fn, _tickComboExpiry, tickComboExpiry_fn, _destroyUsedRunes, destroyUsedRunes_fn, _getBuffer, getBuffer_fn, _setBuffer, setBuffer_fn, _clearBuffer, clearBuffer_fn, _getBufferTimestamp, getBufferTimestamp_fn, _getNearestEntity, getNearestEntity_fn;
 var _SpellCastSystem = class _SpellCastSystem {
   static init() {
     world.afterEvents.itemUse.subscribe((event) => {
-      var _a;
-      __privateMethod(_a = _SpellCastSystem, _onChant, onChant_fn).call(_a, event);
+      var _a, _b;
+      if (event.itemStack?.typeId === "rune:wand") {
+        __privateMethod(_a = _SpellCastSystem, _onAttack, onAttack_fn).call(_a, event.source);
+      } else {
+        __privateMethod(_b = _SpellCastSystem, _onChant, onChant_fn).call(_b, event);
+      }
     });
+    const castThisTick = /* @__PURE__ */ new Set();
+    system.runInterval(() => castThisTick.clear(), 1);
     world.afterEvents.entityHitEntity.subscribe((event) => {
       var _a;
+      if (castThisTick.has(event.damagingEntity.id))
+        return;
+      castThisTick.add(event.damagingEntity.id);
       __privateMethod(_a = _SpellCastSystem, _onAttack, onAttack_fn).call(_a, event.damagingEntity);
     });
     world.afterEvents.entityHitBlock.subscribe((event) => {
       var _a;
+      if (castThisTick.has(event.damagingEntity.id))
+        return;
+      castThisTick.add(event.damagingEntity.id);
       __privateMethod(_a = _SpellCastSystem, _onAttack, onAttack_fn).call(_a, event.damagingEntity);
     });
     system.runInterval(() => {
@@ -261,7 +282,7 @@ onChant_fn = function(event) {
 };
 _onAttack = new WeakSet();
 onAttack_fn = function(attacker) {
-  var _a, _b, _c, _d;
+  var _a, _b, _c, _d, _e;
   if (attacker.typeId !== "minecraft:player")
     return;
   const player = attacker;
@@ -271,29 +292,30 @@ onAttack_fn = function(attacker) {
   const spell = RuneRegistry.lookupSpell(buffer);
   if (spell) {
     player.sendMessage(`\xA76\xA7l\u2726 ${spell.name}! \xA7r\xA77${spell.description}`);
-    __privateMethod(_b = _SpellCastSystem, _executeSpell, executeSpell_fn).call(_b, player, spell);
-    __privateMethod(_c = _SpellCastSystem, _spawnCastVfx, spawnCastVfx_fn).call(_c, player, buffer);
+    __privateMethod(_b = _SpellCastSystem, _destroyUsedRunes, destroyUsedRunes_fn).call(_b, player, buffer);
+    __privateMethod(_c = _SpellCastSystem, _executeSpell, executeSpell_fn).call(_c, player, spell);
+    __privateMethod(_d = _SpellCastSystem, _spawnCastVfx, spawnCastVfx_fn).call(_d, player, buffer, spell);
   } else {
     player.sendMessage("\xA7c[Rune] No combination found. Spell fizzled.");
   }
-  __privateMethod(_d = _SpellCastSystem, _clearBuffer, clearBuffer_fn).call(_d, player);
+  __privateMethod(_e = _SpellCastSystem, _clearBuffer, clearBuffer_fn).call(_e, player);
 };
 _spawnCastVfx = new WeakSet();
-spawnCastVfx_fn = function(player, elements) {
+spawnCastVfx_fn = function(player, elements, spell) {
   if (!elements.includes("fire"))
     return;
   const forward = player.getViewDirection();
   const fwdLen = Math.sqrt(forward.x * forward.x + forward.z * forward.z) || 1;
   const fx = forward.x / fwdLen;
   const fz = forward.z / fwdLen;
-  const chantLevel = elements.length;
+  const isFlameBreath = spell.effectType === SpellEffectType.FIRE_BREATH;
   const vars = new MolangVariableMap();
   vars.setFloat("variable.dir_x", fx);
   vars.setFloat("variable.dir_z", fz);
-  vars.setFloat("variable.scale", 0.6 + chantLevel * 0.3);
-  vars.setFloat("variable.min_size", 1);
-  vars.setFloat("variable.max_size", 2);
-  vars.setFloat("variable.spawn_rate", 50);
+  vars.setFloat("variable.scale", isFlameBreath ? 1.5 : 0.9);
+  vars.setFloat("variable.min_size", isFlameBreath ? 1.5 : 1);
+  vars.setFloat("variable.max_size", isFlameBreath ? 3.5 : 2);
+  vars.setFloat("variable.spawn_rate", isFlameBreath ? 150 : 50);
   player.dimension.spawnParticle("rune:fire_breath", player.location, vars);
 };
 _tickBillboard = new WeakSet();
@@ -403,6 +425,28 @@ executeSpell_fn = function(player, spell) {
       player.sendMessage("\xA7e\u26A1 Knockback launched entities.");
       break;
     }
+    case SpellEffectType.FIRE_BREATH: {
+      const forward = player.getViewDirection();
+      const targets = dimension.getEntities({
+        location,
+        maxDistance: spell.radius,
+        excludeTypes: ["minecraft:player"]
+      });
+      let count = 0;
+      for (const target of targets) {
+        const dx = target.location.x - location.x;
+        const dy = target.location.y - location.y;
+        const dz = target.location.z - location.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+        const dot = (forward.x * dx + forward.y * dy + forward.z * dz) / dist;
+        if (dot > 0.3) {
+          target.applyDamage(spell.power, { cause: EntityDamageCause.fire, damagingEntity: player });
+          count++;
+        }
+      }
+      player.sendMessage(`\xA7c\u{1F525} Flame Breath scorched ${count} target${count !== 1 ? "s" : ""}!`);
+      break;
+    }
     default:
       player.sendMessage(`\xA77[Spell] '${spell.effectType}' not yet implemented.`);
   }
@@ -439,6 +483,32 @@ tickComboExpiry_fn = function() {
         player.sendMessage("\xA77[Rune] Combo window expired.");
         __privateMethod(_c = _SpellCastSystem, _clearBuffer, clearBuffer_fn).call(_c, player);
       }
+    }
+  }
+};
+_destroyUsedRunes = new WeakSet();
+destroyUsedRunes_fn = function(player, buffer) {
+  const inv = player.getComponent("minecraft:inventory");
+  if (!inv?.container)
+    return;
+  const container = inv.container;
+  const toConsume = [...buffer];
+  for (let slot = 0; slot < container.size && toConsume.length > 0; slot++) {
+    const item = container.getItem(slot);
+    if (!item)
+      continue;
+    const rune = RuneRegistry.getRuneByItemId(item.typeId);
+    if (!rune)
+      continue;
+    const idx = toConsume.indexOf(rune.element);
+    if (idx === -1)
+      continue;
+    toConsume.splice(idx, 1);
+    if (item.amount <= 1) {
+      container.setItem(slot, void 0);
+    } else {
+      item.amount--;
+      container.setItem(slot, item);
     }
   }
 };
@@ -507,6 +577,9 @@ __privateAdd(_SpellCastSystem, _executeSpell);
 __privateAdd(_SpellCastSystem, _tickHeldRune);
 // ── Combo Expiry ─────────────────────────────────────────────────────────
 __privateAdd(_SpellCastSystem, _tickComboExpiry);
+// ── Item Destruction ─────────────────────────────────────────────────────
+// Removes one item per rune element used in the buffer from the player's inventory.
+__privateAdd(_SpellCastSystem, _destroyUsedRunes);
 // ── Dynamic Property Helpers ─────────────────────────────────────────────
 __privateAdd(_SpellCastSystem, _getBuffer);
 __privateAdd(_SpellCastSystem, _setBuffer);

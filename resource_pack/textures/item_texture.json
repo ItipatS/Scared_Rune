@@ -25,6 +25,9 @@
 		},
 		"rune_wind": {
 			"textures": "textures/items/rune_wind.png"
+		},
+		"rune_wand": {
+			"textures": "textures/items/breeze_rod"
 		}
 	}
 }
