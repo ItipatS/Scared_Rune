@@ -1,0 +1,23 @@
+{
+  "format_version": "1.20.1",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "rune:wand_recipe"
+    },
+    "tags": ["crafting_table"],
+    "pattern": [
+      " E ",
+      " B ",
+      " Z "
+    ],
+    "key": {
+      "E": { "item": "minecraft:ender_eye" },
+      "B": { "item": "minecraft:breeze_rod" },
+      "Z": { "item": "minecraft:blaze_rod" }
+    },
+    "result": {
+      "item": "rune:wand",
+      "count": 1
+    }
+  }
+}
