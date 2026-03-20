@@ -132,6 +132,9 @@ export class SpellCastSystem {
     vars.setFloat("variable.dir_x", fx);
     vars.setFloat("variable.dir_z", fz);
     vars.setFloat("variable.scale", 0.6 + chantLevel * 0.3); // 0.9 at level 1, 1.2 at level 2
+    vars.setFloat("variable.min_size", 1.0);
+    vars.setFloat("variable.max_size", 2.0); // player: tight cone
+    vars.setFloat("variable.spawn_rate", 50); // player: sparser, smaller area
 
     player.dimension.spawnParticle("rune:fire_breath", player.location, vars);
   }

@@ -14,8 +14,8 @@
 				"rotation": true
 			},
 			"minecraft:emitter_rate_steady": {
-				"spawn_rate": 60,
-				"max_particles": 120
+				"spawn_rate": "variable.spawn_rate == 0.0 ? 60 : variable.spawn_rate",
+				"max_particles": "variable.spawn_rate == 0.0 ? 120 : variable.spawn_rate * 2"
 			},
 			"minecraft:emitter_lifetime_expression": {
 				"activation_expression": 1,
@@ -27,7 +27,7 @@
 					1.5,
 					"variable.dir_x == 0.0 && variable.dir_z == 0.0 ? 1.0 : variable.dir_z * 1.5"
 				],
-				"radius": "math.random(1, 5)",
+				"radius": "math.random(variable.min_size == 0.0 ? 1.0 : variable.min_size, variable.max_size == 0.0 ? 5.0 : variable.max_size)",
 				"plane_normal": "z",
 				"direction": [
 					"variable.dir_x",

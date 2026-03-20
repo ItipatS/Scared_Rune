@@ -540,6 +540,13 @@ var _MobAISystem = class _MobAISystem {
         return;
       ev.hurtEntity.addEffect("darkness", 60, { amplifier: 0 });
     });
+    world2.afterEvents.entityHurt.subscribe((ev) => {
+      if (ev.hurtEntity.typeId !== "rune:voidslice")
+        return;
+      const health = ev.hurtEntity.getComponent("minecraft:health");
+      if (health)
+        health.setCurrentValue(health.effectiveMax);
+    });
     console.log("[MobAISystem] Initialized. AI types:", Object.keys(AI_REGISTRY).join(", "));
   }
 };
@@ -569,11 +576,12 @@ buildContext_fn = function(mob, dimension) {
   const lastAttack = mob.getDynamicProperty("ai:last_attack") ?? "";
   const health = mob.getComponent("minecraft:health");
   const healthPct = health ? health.currentValue / health.effectiveMax : 1;
+  const globalCd = mob.getDynamicProperty("ai:global_cd") ?? 0;
   const attackCds = {};
   for (const name of Object.keys(ATTACK_COOLDOWNS)) {
     attackCds[name] = mob.getDynamicProperty(`ai:cd:${name}`) ?? 0;
   }
-  return { phase, healthPct, dimension, attackCds, lastAttack };
+  return { phase, healthPct, dimension, globalCd, attackCds, lastAttack };
 };
 __privateAdd(_MobAISystem, _tick);
 __privateAdd(_MobAISystem, _buildContext);
@@ -619,12 +627,14 @@ var ATTACK_COOLDOWNS = {
   // 4s
 };
 var ATTACK_RANGES = {
-  thunderslap: 4,
+  thunderslap: [0, 4],
   // melee only
-  void_slices: 24,
-  fire_breath: 8
+  void_slices: [6, 24],
+  // minimum 6 — projectile fan, not for point-blank
+  fire_breath: [0, 8]
   // 1/3 of 24
 };
+var GLOBAL_ATTACK_CD = 40;
 var ATTACK_FNS = {
   thunderslap: executeThunderslap,
   void_slices: executeVoidSlices,
@@ -634,6 +644,8 @@ function getCombatTargets(mob, ctx, range) {
   const all = ctx.dimension.getEntities({ maxDistance: range, location: mob.location });
   return all.filter((e) => {
     if (e === mob)
+      return false;
+    if (e.typeId === "rune:voidslice")
       return false;
     if (e instanceof Player2) {
       const mode = e.getGameMode();
@@ -667,7 +679,10 @@ function getMainTarget(mob, ctx, range) {
   return best;
 }
 function selectAttack(phase, lastAttack, targetDist, attackCds) {
-  const pool = (ATTACK_POOL[phase] ?? ATTACK_POOL[1]).filter((a) => targetDist <= (ATTACK_RANGES[a] ?? Infinity)).filter((a) => system2.currentTick >= (attackCds[a] ?? 0));
+  const pool = (ATTACK_POOL[phase] ?? ATTACK_POOL[1]).filter((a) => {
+    const [min, max] = ATTACK_RANGES[a] ?? [0, Infinity];
+    return targetDist >= min && targetDist <= max;
+  }).filter((a) => system2.currentTick >= (attackCds[a] ?? 0));
   if (pool.length === 0)
     return void 0;
   const candidates = pool.length > 1 ? pool.filter((a) => a !== lastAttack) : pool;
@@ -676,13 +691,15 @@ function selectAttack(phase, lastAttack, targetDist, attackCds) {
 function RuneGuardianBrain(mob, ctx) {
   if (!mob.isValid)
     return;
-  const { phase, healthPct, attackCds, lastAttack } = ctx;
+  const { phase, healthPct, globalCd, attackCds, lastAttack } = ctx;
   const newPhase = computePhase(healthPct);
   if (newPhase > phase) {
     mob.setDynamicProperty("ai:phase", newPhase);
     onPhaseEnter(mob, ctx, newPhase);
     return;
   }
+  if (system2.currentTick < globalCd)
+    return;
   const target = getMainTarget(mob, ctx, 24);
   if (!target)
     return;
@@ -699,6 +716,7 @@ function RuneGuardianBrain(mob, ctx) {
   fn(mob, ctx, target);
   mob.setDynamicProperty("ai:last_attack", attack);
   mob.setDynamicProperty(`ai:cd:${attack}`, system2.currentTick + ATTACK_COOLDOWNS[attack]);
+  mob.setDynamicProperty("ai:global_cd", system2.currentTick + GLOBAL_ATTACK_CD);
 }
 function executeThunderslap(mob, ctx, _target) {
   mob.setProperty("rune:is_thunderslap", true);
@@ -784,6 +802,9 @@ function executeFireBreath(mob, ctx, target) {
   vars.setFloat("variable.dir_x", fx0);
   vars.setFloat("variable.dir_z", fz0);
   vars.setFloat("variable.scale", 1.5);
+  vars.setFloat("variable.min_size", 1);
+  vars.setFloat("variable.max_size", 5);
+  vars.setFloat("variable.spawn_rate", 80);
   ctx.dimension.spawnParticle("rune:fire_breath", mobLoc, vars);
   const targetId = target.id;
   system2.runTimeout(() => {

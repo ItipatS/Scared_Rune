@@ -32,6 +32,7 @@ interface AIContext {
   phase: number;
   healthPct: number;
   dimension: Dimension;
+  globalCd: number;                  // tick at which any attack is next allowed
   attackCds: Record<string, number>; // per-attack: tick at which that attack is next allowed
   lastAttack: string;                // name of last executed attack (for rotation)
 }
@@ -53,10 +54,18 @@ export class MobAISystem {
       MobAISystem.#tick();
     }, AI_TICK_INTERVAL);
 
+    // Voidslice hits players → apply darkness
     world.afterEvents.entityHurt.subscribe((ev) => {
       if (ev.damageSource.damagingEntity?.typeId !== "rune:voidslice") return;
       if (!(ev.hurtEntity instanceof Player)) return;
       ev.hurtEntity.addEffect("darkness", 60, { amplifier: 0 });
+    });
+
+    // Voidslices are fully immune to all damage — they are script-managed and only despawn via timeout.
+    world.afterEvents.entityHurt.subscribe((ev) => {
+      if (ev.hurtEntity.typeId !== "rune:voidslice") return;
+      const health = ev.hurtEntity.getComponent("minecraft:health") as EntityHealthComponent | undefined;
+      if (health) health.setCurrentValue(health.effectiveMax);
     });
 
     console.log("[MobAISystem] Initialized. AI types:", Object.keys(AI_REGISTRY).join(", "));
@@ -87,12 +96,13 @@ export class MobAISystem {
     const health = mob.getComponent("minecraft:health") as EntityHealthComponent | undefined;
     const healthPct = health ? health.currentValue / health.effectiveMax : 1;
 
+    const globalCd = (mob.getDynamicProperty("ai:global_cd") as number | undefined) ?? 0;
     const attackCds: Record<string, number> = {};
     for (const name of Object.keys(ATTACK_COOLDOWNS)) {
       attackCds[name] = (mob.getDynamicProperty(`ai:cd:${name}`) as number | undefined) ?? 0;
     }
 
-    return { phase, healthPct, dimension, attackCds, lastAttack };
+    return { phase, healthPct, dimension, globalCd, attackCds, lastAttack };
   }
 }
 
@@ -147,12 +157,16 @@ const ATTACK_COOLDOWNS: Record<string, number> = {
   fire_breath: 80, // 4s
 };
 
-// Max distance (blocks) at which each attack can trigger
-const ATTACK_RANGES: Record<string, number> = {
-  thunderslap: 4,  // melee only
-  void_slices: 24,
-  fire_breath: 8,  // 1/3 of 24
+// [min, max] distance (blocks) at which each attack can trigger
+const ATTACK_RANGES: Record<string, [number, number]> = {
+  thunderslap: [0, 4],   // melee only
+  void_slices: [6, 24],  // minimum 6 — projectile fan, not for point-blank
+  fire_breath: [0, 8],   // 1/3 of 24
 };
+
+// Ticks the guardian must wait after ANY attack before firing the next one.
+// Prevents back-to-back chaining of different attacks.
+const GLOBAL_ATTACK_CD = 40; // 2s
 
 // Stub executors — replace with real implementations later
 const ATTACK_FNS: Record<string, AttackFn> = {
@@ -162,16 +176,17 @@ const ATTACK_FNS: Record<string, AttackFn> = {
 };
 
 // Returns all valid combat targets in range — players (non-creative/spectator) + other mobs.
-// Excludes the guardian itself and its own projectiles.
+// Excludes the guardian itself, its own voidslice projectiles, and non-damageable entities.
 function getCombatTargets(mob: Entity, ctx: AIContext, range: number): Entity[] {
   const all = ctx.dimension.getEntities({ maxDistance: range, location: mob.location });
   return all.filter(e => {
     if (e === mob) return false;
+    if (e.typeId === "rune:voidslice") return false;
     if (e instanceof Player) {
       const mode = e.getGameMode();
       return mode !== GameMode.creative && mode !== GameMode.spectator;
     }
-    // Exclude projectiles / non-damageable helper entities
+    // Exclude non-damageable helper entities
     const health = e.getComponent("minecraft:health") as EntityHealthComponent | undefined;
     return health !== undefined;
   });
@@ -207,7 +222,7 @@ function getMainTarget(mob: Entity, ctx: AIContext, range: number): Entity | und
 
 function selectAttack(phase: number, lastAttack: string, targetDist: number, attackCds: Record<string, number>): string | undefined {
   const pool = (ATTACK_POOL[phase] ?? ATTACK_POOL[1])
-    .filter(a => targetDist <= (ATTACK_RANGES[a] ?? Infinity))
+    .filter(a => { const [min, max] = ATTACK_RANGES[a] ?? [0, Infinity]; return targetDist >= min && targetDist <= max; })
     .filter(a => system.currentTick >= (attackCds[a] ?? 0));
   if (pool.length === 0) return undefined;
   const candidates = pool.length > 1
@@ -225,7 +240,7 @@ function selectAttack(phase: number, lastAttack: string, targetDist: number, att
 
 function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
   if (!mob.isValid) return;
-  const { phase, healthPct, attackCds, lastAttack } = ctx;
+  const { phase, healthPct, globalCd, attackCds, lastAttack } = ctx;
 
   // ── Phase transition check ────────────────────────────────────────────────
   const newPhase = computePhase(healthPct);
@@ -236,6 +251,7 @@ function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
   }
 
   // ── Attack dispatch ───────────────────────────────────────────────────────
+  if (system.currentTick < globalCd) return; // global inter-attack gap
   const target = getMainTarget(mob, ctx, 24);
   if (!target) return; // no valid target in facing direction
 
@@ -253,6 +269,7 @@ function RuneGuardianBrain(mob: Entity, ctx: AIContext): void {
   fn(mob, ctx, target);
   mob.setDynamicProperty("ai:last_attack", attack);
   mob.setDynamicProperty(`ai:cd:${attack}`, system.currentTick + ATTACK_COOLDOWNS[attack]);
+  mob.setDynamicProperty("ai:global_cd", system.currentTick + GLOBAL_ATTACK_CD);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -353,7 +370,10 @@ function executeFireBreath(mob: Entity, ctx: AIContext, target: Entity): void {
   const vars = new MolangVariableMap();
   vars.setFloat("variable.dir_x", fx0);
   vars.setFloat("variable.dir_z", fz0);
-  vars.setFloat("variable.scale", 1.5);
+  vars.setFloat("variable.scale", 1.5);   // guardian is bigger
+  vars.setFloat("variable.min_size", 1.0);
+  vars.setFloat("variable.max_size", 5.0); // guardian: wide spread
+  vars.setFloat("variable.spawn_rate", 80); // guardian: dense, matches wider radius
   ctx.dimension.spawnParticle("rune:fire_breath", mobLoc, vars);
 
   // Snapshot target id — re-resolve at hit frame so the cone tracks movement.
